@@ -61,6 +61,10 @@ export default class PlayScene extends SuperScene {
   }
 
   setupPhysics() {
+    const {level, physics} = this;
+    const {player, groups} = level;
+
+    physics.add.collider(player, groups.wall.group);
   }
 
   setupAnimations() {
@@ -115,6 +119,8 @@ export default class PlayScene extends SuperScene {
   }
 
   fixedUpdate(time, dt) {
+    this.physics.world.gravity.y = prop('physics.gravity');
+
     this.processInput(time, dt);
 
     this.drag(dt);

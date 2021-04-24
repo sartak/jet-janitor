@@ -81,6 +81,7 @@ export const propSpecs = {
   ...builtinPropSpecs(commands, shaderCoordFragments, shaderColorFragments),
 
   'physics.drag': [0.9, 0, 1],
+  'physics.gravity': [10000, 0, 100000],
 
   'player.x': [0, null, 'level.player.x'],
   'player.y': [0, null, 'level.player.y'],
@@ -95,6 +96,7 @@ export const tileDefinitions = {
     image: 'wall',
     group: 'wall',
     isStatic: true,
+    combine: true,
   },
 };
 
