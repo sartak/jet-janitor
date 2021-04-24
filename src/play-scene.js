@@ -1,7 +1,6 @@
 import SuperScene from './scaffolding/SuperScene';
 import prop from './props';
 import analytics from './scaffolding/lib/analytics';
-import {NormalizeVector} from './scaffolding/lib/vector';
 
 // DEEPER AND DEEPER
 
@@ -59,8 +58,9 @@ export default class PlayScene extends SuperScene {
   }
 
   setGun(idx) {
-    const {level} = this;
-    const {now} = this.time;
+    const {level, time} = this;
+    const {player} = level;
+    const {now} = time;
 
     if (level.gunCooldown && level.gunCooldown > now) {
       return;
@@ -68,6 +68,9 @@ export default class PlayScene extends SuperScene {
 
     level.gunCooldown = now + prop('gun.cooldown');
     level.currentGun = idx;
+
+    const [x, y] = this.boosterPosition(prop('booster.shockOffset'));
+    this.shockwave(x + player.booster.width / 2, y + player.booster.height / 2);
   }
 
   nextGun() {
@@ -85,6 +88,12 @@ export default class PlayScene extends SuperScene {
     const tile = level.mapLookups['@'][0];
     const [x, y] = this.positionToScreenCoordinate(tile.x, tile.y);
     const player = this.physics.add.sprite(x, y, 'player');
+
+    player.gunThrust = 0;
+    player.squishFactor = 1;
+
+    const booster = player.booster = this.physics.add.sprite(player.x, player.y, 'booster');
+    booster.bonus = 0;
 
     return player;
   }
@@ -158,14 +167,32 @@ export default class PlayScene extends SuperScene {
     this.tradeoff(dt);
     this.ailerons(dt);
     this.gravity(dt);
+    this.booster(dt);
+    this.relativity(dt);
+
     //    this.drag(dt);
+  }
+
+  relativity(dt) {
+    const {level} = this;
+    const {player} = level;
+    const {gunThrust} = player;
+
+    const squish = prop('player.squish');
+    const factor = player.thrust / squish;
+    player.squishFactor = factor * 0.9 + player.squishFactor * 0.1;
+    player.setScale(1 - player.squishFactor, 1 + player.squishFactor);
+
+    this.timeScale = 1 + gunThrust * prop('physics.timeThrust');
+    this.camera.zoom = 1 + gunThrust * prop('physics.zoomThrust');
   }
 
   thrusters(dt) {
     const {level, physics} = this;
     const {player} = level;
 
-    const gunThrust = player.gunThrust = Math.max(0, level.gunCooldown - this.time.now) / prop('gun.cooldown');
+    const desiredPercent = Math.max(0, level.gunCooldown - this.time.now) / prop('gun.cooldown');
+    const gunThrust = player.gunThrust = desiredPercent * 0.1 + player.gunThrust * 0.9;
     player.thrust += prop('gun.thrustBoost') * gunThrust;
 
     const max = (1 + prop('gun.thrustMax') * gunThrust) * prop('player.maxVelocity');
@@ -184,7 +211,6 @@ export default class PlayScene extends SuperScene {
     if (player.roll) {
       player.thrust *= prop('player.thrustRollFactor');
     }
-
   }
 
   ailerons(dt) {
@@ -216,6 +242,43 @@ export default class PlayScene extends SuperScene {
 
     player.body.setAccelerationX(ax);
     player.body.setAccelerationY(ay);
+  }
+
+  boosterPosition(bonus = 0) {
+    const {level} = this;
+    const {player} = level;
+    const {
+      x, y, width, height, theta,
+    } = player;
+    return [
+      x + (width + bonus) * Math.sin(theta),
+      y + (height + bonus) * (-Math.cos(theta)),
+    ];
+  }
+
+  booster(dt) {
+    const {level} = this;
+    const {player} = level;
+    const {booster} = player;
+
+    if (player.thrust <= 0.01) {
+      booster.alpha = 0;
+      booster.bonus = 0;
+    } else {
+      booster.alpha = 1;
+    }
+
+    let distFactor = (Math.sin(this.command.up.heldFrames / prop('booster.bounce')) + 1) / 2;
+    distFactor += Math.max(1, player.thrust) - 1;
+    distFactor *= 1 - player.roll;
+
+    const desiredBonus = distFactor * prop('booster.distance');
+    const currentBonus = booster.bonus;
+
+    booster.bonus = desiredBonus * 0.1 + currentBonus * 0.9;
+
+    [booster.x, booster.y] = this.boosterPosition(booster.bonus);
+    booster.angle = player.angle;
   }
 
   textSize(options) {

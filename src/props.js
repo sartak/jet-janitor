@@ -79,8 +79,12 @@ export const commands = {
   },
 };
 
-export const shaderCoordFragments = null;
-export const shaderColorFragments = null;
+export const shaderCoordFragments = [
+  'shockwave',
+];
+export const shaderColorFragments = [
+  'blur',
+];
 export const shaderPipelines = {
 };
 
@@ -88,6 +92,8 @@ export const propSpecs = {
   ...builtinPropSpecs(commands, shaderCoordFragments, shaderColorFragments),
 
   'physics.drag': [0.9, 0, 1],
+  'physics.timeThrust': [5, 0, 10],
+  'physics.zoomThrust': [0.15, 0, 1],
 
   'player.x': [0, null, 'level.player.x'],
   'player.y': [0, null, 'level.player.y'],
@@ -95,7 +101,7 @@ export const propSpecs = {
   'player.vy': [0, null, 'level.player.body.velocity.y'],
   'player.thrust': [0.1, null, 'level.player.thrust'],
   'player.roll': [0.1, null, 'level.player.roll'],
-  'player.boostRollThrustFactor': [0.5, 0, 1],
+  'player.boostRollThrustFactor': [0.3, 0, 1],
   'player.rollThrustFactor': [0.8, 0, 1],
   'player.thrustRollFactor': [1.0, 0, 1],
   'player.sin': [0.1, null, 'level.player.sin'],
@@ -108,13 +114,19 @@ export const propSpecs = {
   'player.power': [500, 0, 10000],
   'player.accelerationX': [0.1, null, 'level.player.body.acceleration.x'],
   'player.accelerationY': [0.1, null, 'level.player.body.acceleration.y'],
-  'player.maxVelocity': [1000, 0, 10000],
+  'player.maxVelocity': [500, 0, 10000],
   'player.gunThrust': [0.1, null, 'level.player.gunThrust'],
+  'player.squish': [60, 1, 100],
+
+  'booster.bounce': [15, 0, 500],
+  'booster.distance': [10, 0, 1000],
+  'booster.bonus': [0.1, null, 'level.player.booster.bonus'],
+  'booster.shockOffset': [32, 0, 100],
 
   'gun.current': [0, null, 'level.currentGun'],
   'gun.currentCooldown': [0, null, 'level.gunCooldown'],
   'gun.cooldown': [2000, 0, 10000],
-  'gun.thrustBoost': [1.0, 0, 10],
+  'gun.thrustBoost': [3, 0, 10],
   'gun.thrustMax': [1.0, 0, 10],
   'gun.next': [(scene) => scene.nextGun()],
   'gun.prev': [(scene) => scene.prevGun()],
