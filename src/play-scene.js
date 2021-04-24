@@ -50,6 +50,7 @@ export default class PlayScene extends SuperScene {
 
     const level = this.createLevel('test');
     level.currentGun = 0;
+    level.gunCooldown = -100000;
     level.player = this.createPlayer();
 
     this.setupPhysics();
@@ -142,16 +143,7 @@ export default class PlayScene extends SuperScene {
       roll = dx;
     }
 
-    if (player.thrust) {
-      roll *= prop('player.rollThrustFactor');
-    }
-
-    if (player.roll) {
-      thrust *= prop('player.thrustRollFactor');
-    }
-
     player.thrust = thrust;
-
     player.roll = roll;
   }
 
@@ -159,14 +151,40 @@ export default class PlayScene extends SuperScene {
     const {level, physics} = this;
     const {player} = level;
 
-    const max = prop('player.maxVelocity');
-    player.body.setMaxVelocity(max, max);
-
     this.processInput(time, dt);
 
+    this.thrusters(dt);
+
+    this.tradeoff(dt);
     this.ailerons(dt);
     this.gravity(dt);
     //    this.drag(dt);
+  }
+
+  thrusters(dt) {
+    const {level, physics} = this;
+    const {player} = level;
+
+    const gunThrust = player.gunThrust = Math.max(0, level.gunCooldown - this.time.now) / prop('gun.cooldown');
+    player.thrust += prop('gun.thrustBoost') * gunThrust;
+
+    const max = (1 + prop('gun.thrustMax') * gunThrust) * prop('player.maxVelocity');
+    player.body.setMaxVelocity(max, max);
+  }
+
+  tradeoff(dt) {
+    const {level, physics} = this;
+    const {player} = level;
+
+    if (player.thrust > 1) {
+      player.roll *= prop('player.boostRollThrustFactor');
+    } else if (player.thrust) {
+      player.roll *= prop('player.rollThrustFactor');
+    }
+    if (player.roll) {
+      player.thrust *= prop('player.thrustRollFactor');
+    }
+
   }
 
   ailerons(dt) {

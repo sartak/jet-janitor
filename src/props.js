@@ -95,6 +95,7 @@ export const propSpecs = {
   'player.vy': [0, null, 'level.player.body.velocity.y'],
   'player.thrust': [0.1, null, 'level.player.thrust'],
   'player.roll': [0.1, null, 'level.player.roll'],
+  'player.boostRollThrustFactor': [0.5, 0, 1],
   'player.rollThrustFactor': [0.8, 0, 1],
   'player.thrustRollFactor': [1.0, 0, 1],
   'player.sin': [0.1, null, 'level.player.sin'],
@@ -108,10 +109,13 @@ export const propSpecs = {
   'player.accelerationX': [0.1, null, 'level.player.body.acceleration.x'],
   'player.accelerationY': [0.1, null, 'level.player.body.acceleration.y'],
   'player.maxVelocity': [1000, 0, 10000],
+  'player.gunThrust': [0.1, null, 'level.player.gunThrust'],
 
   'gun.current': [0, null, 'level.currentGun'],
   'gun.currentCooldown': [0, null, 'level.gunCooldown'],
   'gun.cooldown': [2000, 0, 10000],
+  'gun.thrustBoost': [1.0, 0, 10],
+  'gun.thrustMax': [1.0, 0, 10],
   'gun.next': [(scene) => scene.nextGun()],
   'gun.prev': [(scene) => scene.prevGun()],
 };
