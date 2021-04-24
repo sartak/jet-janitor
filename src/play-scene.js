@@ -5,6 +5,8 @@ import {NormalizeVector} from './scaffolding/lib/vector';
 
 // DEEPER AND DEEPER
 
+const GUNS = 3;
+
 export default class PlayScene extends SuperScene {
   constructor() {
     super({
@@ -47,9 +49,25 @@ export default class PlayScene extends SuperScene {
     super.create(config);
 
     const level = this.createLevel('test');
+    level.currentGun = 0;
     level.player = this.createPlayer();
 
     this.setupPhysics();
+  }
+
+  setGun(idx) {
+    const {level} = this;
+    level.currentGun = idx;
+  }
+
+  nextGun() {
+    const {level} = this;
+    this.setGun((level.currentGun + 1) % GUNS);
+  }
+
+  prevGun() {
+    const {level} = this;
+    this.setGun(((level.currentGun + GUNS) - 1) % GUNS);
   }
 
   createPlayer(config) {

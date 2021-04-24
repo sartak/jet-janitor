@@ -88,6 +88,10 @@ export const propSpecs = {
   'player.vx': [0.1, null, 'level.player.body.velocity.x'],
   'player.vy': [0.1, null, 'level.player.body.velocity.y'],
   'player.facingLeft': [false, null, 'level.player.facingLeft'],
+
+  'gun.current': [0, null, 'level.currentGun'],
+  'gun.next': [(scene) => scene.nextGun()],
+  'gun.prev': [(scene) => scene.prevGun()],
 };
 
 export const tileDefinitions = {
