@@ -292,11 +292,10 @@ export default class PlayScene extends SuperScene {
       plane2.planeCollideDebounce[plane1] = now + debounce;
     } else {
       // debounce
-      return;
     }
 
     const angle = Math.atan2(plane2.y - plane1.y, plane2.x - plane1.x);
-    const amount = 1000;
+    const amount = 100;
     plane2.setVelocityX(plane2.body.velocity.x + amount * Math.cos(angle));
     plane2.setVelocityY(plane2.body.velocity.y + amount * Math.sin(angle));
     plane1.setVelocityX(plane1.body.velocity.x + amount * -Math.cos(angle));
