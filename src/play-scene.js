@@ -6,6 +6,8 @@ import analytics from './scaffolding/lib/analytics';
 
 const GUNS = 3;
 
+const Angle2Theta = (angle) => (angle + 180) / 180 * Math.PI;
+
 export default class PlayScene extends SuperScene {
   constructor() {
     super({
@@ -81,6 +83,31 @@ export default class PlayScene extends SuperScene {
   prevGun() {
     const {level} = this;
     this.setGun(((level.currentGun + GUNS) - 1) % GUNS);
+  }
+
+  createBullet(shooter, type, x, y, angle) {
+    const bullet = this.physics.add.sprite(x, y, `bullet${type}`);
+    bullet.angle = angle;
+    const theta = bullet.theta = Angle2Theta(angle);
+    const speed = prop(`gun.${type}.speed`);
+
+    const vx = /* shooter.body.velocity.x +*/ speed * -Math.sin(theta);
+    const vy = /* shooter.body.velocity.y +*/ speed * Math.cos(theta);
+
+    bullet.setVelocity(vx, vy);
+
+    this.timer(() => {
+      bullet.destroy();
+    }, 10000);
+
+    return bullet;
+  }
+
+  shoot() {
+    const {level} = this;
+    const {player} = level;
+
+    this.createBullet(player, level.currentGun, player.x, player.y, player.angle);
   }
 
   createPlayer(config) {
@@ -218,7 +245,7 @@ export default class PlayScene extends SuperScene {
     const {player} = level;
     const {angle, roll} = player;
 
-    const theta = player.theta = (angle + 180) / 180 * Math.PI;
+    const theta = Angle2Theta(player.angle);
     player.sin = Math.sin(theta);
     player.cos = Math.cos(theta);
 

@@ -10,6 +10,8 @@ const particleImages = [
 export const commands = {
   shoot: {
     input: ['keyboard.Z', 'gamepad.A'],
+    execute: 'shoot',
+    cooldown: 300,
   },
 
   nextGun: {
@@ -130,6 +132,10 @@ export const propSpecs = {
   'gun.thrustMax': [1.0, 0, 10],
   'gun.next': [(scene) => scene.nextGun()],
   'gun.prev': [(scene) => scene.prevGun()],
+
+  'gun.0.speed': [500, 0, 10000],
+  'gun.1.speed': [500, 0, 10000],
+  'gun.2.speed': [500, 0, 10000],
 };
 
 export const tileDefinitions = {
