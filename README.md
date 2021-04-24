@@ -2,7 +2,7 @@
 
 # Play Live
 
-[https://ld48.sartak.org/](https://ld48.sartak.org/)
+[https://jet-janitor.sartak.org/](https://jet-janitor.sartak.org/)
 
 # Development
 

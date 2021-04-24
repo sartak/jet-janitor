@@ -1,9 +1,9 @@
 {
-  "name": "ld48",
+  "name": "jet-janitor",
   "homepage": "/",
   "version": "0.1.0",
   "productionDisplay": {
-    "displayName": "ld48",
+    "displayName": "Chuck Yeager's Jet Janitor",
     "analyticsId": "G-ERQYV8C35X",
     "authorName": "@sartak",
     "authorURL": "https://sartak.org",
@@ -18,7 +18,7 @@
     "themePre": "",
     "themeItalic": "\"deeper and deeper\"",
     "themePost": "",
-    "repoURL": "https://github.com/sartak/ld48"
+    "repoURL": "https://github.com/sartak/jet-janitor"
   },
   "developmentDisplay": {
     "links": [
