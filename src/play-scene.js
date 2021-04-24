@@ -53,10 +53,19 @@ export default class PlayScene extends SuperScene {
     level.player = this.createPlayer();
 
     this.setupPhysics();
+
+    this.cameraFollow(level.player);
   }
 
   setGun(idx) {
     const {level} = this;
+    const {now} = this.time;
+
+    if (level.gunCooldown && level.gunCooldown > now) {
+      return;
+    }
+
+    level.gunCooldown = now + prop('gun.cooldown');
     level.currentGun = idx;
   }
 
@@ -76,8 +85,6 @@ export default class PlayScene extends SuperScene {
     const [x, y] = this.positionToScreenCoordinate(tile.x, tile.y);
     const player = this.physics.add.sprite(x, y, 'player');
 
-    player.facingLeft = false;
-
     return player;
   }
 
@@ -95,22 +102,22 @@ export default class PlayScene extends SuperScene {
     const {command, level} = this;
     const {player} = level;
 
-    let dx = 0;
-    let dy = 0;
+    let thrust = 0;
+    let roll = 0;
     let stickInput = false;
 
     if (command.up.held) {
-      dy = -1;
-    } else if (command.down.held) {
-      dy = 1;
+      thrust = 1;
     }
 
     if (command.right.held) {
-      dx = 1;
+      roll = 1;
     } else if (command.left.held) {
-      dx = -1;
+      roll = -1;
     }
 
+    let dx = 0;
+    let dy = 0;
     if (command.lstick.held) {
       [dx, dy] = command.lstick.held;
       stickInput = true;
@@ -127,42 +134,70 @@ export default class PlayScene extends SuperScene {
         dy = dy < 0 ? -1 : 1;
         dx = 0;
       }
+
+      if (dy < 0) {
+        thrust = 1;
+      }
+
+      roll = dx;
     }
 
-    if (dx || dy) {
-      [dx, dy] = NormalizeVector(dx, dy);
-    } else {
-      dx = dy = 0;
+    if (player.thrust) {
+      roll *= prop('player.rollThrustFactor');
     }
 
-    if (dx < 0) {
-      player.facingLeft = true;
-    } else if (dx > 0) {
-      player.facingLeft = false;
+    if (player.roll) {
+      thrust *= prop('player.thrustRollFactor');
     }
 
-    player.setFlipX(player.facingLeft);
+    player.thrust = thrust;
 
-    player.setVelocityX(player.body.velocity.x + dx * dt);
-    player.setVelocityY(player.body.velocity.y + dy * dt);
+    player.roll = roll;
   }
 
   fixedUpdate(time, dt) {
-    this.physics.world.gravity.y = prop('physics.gravity');
+    const {level, physics} = this;
+    const {player} = level;
+
+    const max = prop('player.maxVelocity');
+    player.body.setMaxVelocity(max, max);
 
     this.processInput(time, dt);
 
-    this.drag(dt);
+    this.ailerons(dt);
+    this.gravity(dt);
+    //    this.drag(dt);
   }
 
-  drag(dt) {
+  ailerons(dt) {
+    const {level} = this;
+    const {player} = level;
+    const {angle, roll} = player;
+
+    const theta = player.theta = (angle + 180) / 180 * Math.PI;
+    player.sin = Math.sin(theta);
+    player.cos = Math.cos(theta);
+
+    player.body.setAngularVelocity(roll * prop('player.droll'));
+  }
+
+  gravity(dt) {
     const {level} = this;
     const {player} = level;
 
-    const fps = 1000 / 60;
-    const rate = dt / fps;
-    player.setVelocityX(player.body.velocity.x * rate * prop('physics.drag'));
-    player.setVelocityY(player.body.velocity.y * rate * prop('physics.drag'));
+    let ay = 0;
+    let ax = 0;
+
+    if (player.thrust > 0) {
+      ay = prop('player.thrustGravity');
+      ay -= player.thrust * prop('player.power') * -1 * player.cos;
+      ax = player.thrust * prop('player.power') * -1 * player.sin;
+    } else {
+      ay = prop('player.gravity');
+    }
+
+    player.body.setAccelerationX(ax);
+    player.body.setAccelerationY(ay);
   }
 
   textSize(options) {
