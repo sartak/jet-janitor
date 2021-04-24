@@ -664,7 +664,7 @@ export default class SuperScene extends Phaser.Scene {
     return level;
   }
 
-  createTileForGroup(groupName, x, y) {
+  createTileForGroup(groupName, x, y, tile) {
     const {
       level, tileWidth, tileHeight, halfWidth, halfHeight,
     } = this;
@@ -672,7 +672,9 @@ export default class SuperScene extends Phaser.Scene {
 
     let object;
 
-    if (group.image) {
+    if (tile.image) {
+      object = group.group.create(x, y, tile.image);
+    } else if (group.image) {
       object = group.group.create(x, y, group.image);
     } else {
       object = this.add.rectangle(x, y, tileWidth, tileHeight);
@@ -737,7 +739,7 @@ export default class SuperScene extends Phaser.Scene {
             return;
           }
 
-          const object = this.createTileForGroup(group, xCoord + halfWidth, yCoord + halfHeight);
+          const object = this.createTileForGroup(group, xCoord + halfWidth, yCoord + halfHeight, tile);
           object.tiles = [tile];
           tile.object = object;
         } else if (tile.image) {

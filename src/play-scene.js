@@ -53,51 +53,69 @@ export default class PlayScene extends SuperScene {
 
     this.setupPhysics();
 
-    this.cameraFollow(level.player);
+    this.cameraFollow(level.currentPlane);
   }
 
   createLevel(id) {
     const level = super.createLevel(id);
-    level.currentGun = 0;
-    level.gunCooldown = -100000;
-    level.player = this.createPlayer();
 
-    level.playerBullets = this.physics.add.group();
-    level.enemyBullets = this.physics.add.group();
+    level.bullets = this.physics.add.group();
+    level.planes = [...level.groups.plane.objects];
+    level.planeIndex = 0;
+    level.currentPlane = level.planes[level.planeIndex];
+
+    level.planes.forEach((plane) => {
+      this.createBooster(plane);
+      plane.gunCooldown = -100000;
+      plane.currentGun = 0;
+      plane.thrust = 0;
+      plane.roll = 0;
+      plane.damage = 0;
+      plane.planeCollideDebounce = {};
+    });
 
     return level;
   }
 
   setGun(idx) {
     const {level, time} = this;
-    const {player} = level;
+    const {currentPlane} = level;
     const {now} = time;
 
-    if (level.gunCooldown && level.gunCooldown > now) {
+    if (currentPlane.winning) {
       return;
     }
 
-    level.gunCooldown = now + prop('gun.cooldown');
-    level.currentGun = idx;
+    if (currentPlane.gunCooldown && currentPlane.gunCooldown > now) {
+      return;
+    }
 
-    const [x, y] = this.boosterPosition(prop('booster.shockOffset'));
-    this.shockwave(x + player.booster.width / 2, y + player.booster.height / 2);
+    currentPlane.gunCooldown = now + prop('gun.cooldown');
+    currentPlane.currentGun = idx;
+
+    const [x, y] = this.boosterPosition(currentPlane, prop('booster.shockOffset'));
+    this.shockwave(x + currentPlane.booster.width / 2, y + currentPlane.booster.height / 2);
   }
 
   nextGun() {
     const {level} = this;
-    this.setGun((level.currentGun + 1) % GUNS);
+    const {currentPlane} = level;
+    this.setGun((currentPlane.currentGun + 1) % GUNS);
   }
 
   prevGun() {
     const {level} = this;
-    this.setGun(((level.currentGun + GUNS) - 1) % GUNS);
+    const {currentPlane} = level;
+    this.setGun(((currentPlane.currentGun + GUNS) - 1) % GUNS);
   }
 
-  createBullet(shooter, type, x, y, angle) {
+  createBullet(shooter) {
     const {level} = this;
-    const group = shooter === level.player ? level.playerBullets : level.enemyBullets;
-    const bullet = group.create(x, y, `bullet${type}`);
+    const type = shooter.currentGun;
+    const {x, y, angle} = shooter;
+
+    const bullet = level.bullets.create(x, y, `bullet${type}`);
+    bullet.shooter = shooter;
     bullet.angle = angle;
     const theta = bullet.theta = Angle2Theta(angle);
     const speed = prop(`gun.${type}.speed`);
@@ -116,59 +134,81 @@ export default class PlayScene extends SuperScene {
 
   shoot() {
     const {level} = this;
-    const {player} = level;
+    const {currentPlane} = level;
 
-    this.createBullet(player, level.currentGun, player.x, player.y, player.angle);
+    if (level.changingPlanes) {
+      this.selectedPlane();
+      return;
+    }
+
+    if (currentPlane.winning) {
+      return;
+    }
+
+    this.createBullet(currentPlane);
   }
 
-  createPlayer(config) {
+  selectedPlane() {
     const {level} = this;
-    const tile = level.mapLookups['@'][0];
-    const [x, y] = this.positionToScreenCoordinate(tile.x, tile.y);
-    const player = this.physics.add.sprite(x, y, 'player');
+    const {planeIndex, availablePlanes} = level;
 
-    player.gunThrust = 0;
-    player.squishFactor = 1;
+    level.changingPlanes = false;
+    level.currentPlane = availablePlanes[planeIndex];
+    this.cameraFollow(level.currentPlane);
+  }
 
-    const booster = player.booster = this.physics.add.sprite(player.x, player.y, 'booster');
-    booster.bonus = 0;
-
-    return player;
+  createBooster(plane) {
+    const booster = plane.booster = this.physics.add.sprite(plane.x, plane.y, 'booster');
+    return booster;
   }
 
   setupPhysics() {
     const {level, physics} = this;
-    const {
-      player, groups, playerBullets, enemyBullets,
-    } = level;
-    const {wall, enemy} = groups;
+    const {groups, bullets} = level;
+    const {wall, goal, plane} = groups;
 
-    physics.add.collider(player, wall.group);
-    physics.add.overlap(player, enemy.group, null, (...args) => this.overlapPlayerEnemy(...args));
-    physics.add.overlap(player, enemyBullets, null, (...args) => this.overlapPlayerEnemyBullet(...args));
-
-    physics.add.overlap(enemy.group, enemy.group, null, (...args) => this.overlapEnemyEnemy(...args));
-    physics.add.overlap(enemy.group, playerBullets, null, (...args) => this.overlapEnemyPlayerBullet(...args));
+    physics.add.collider(plane.group, wall.group);
+    physics.add.collider(plane.group, plane.group, null, (...args) => this.overlapPlanePlane(...args));
+    physics.add.overlap(plane.group, bullets, null, (...args) => this.overlapPlaneBullet(...args));
+    physics.add.overlap(plane.group, goal.group, null, (...args) => this.overlapPlaneGoal(...args));
   }
 
-  overlapPlayerEnemyBullet(player, bullet) {
-    //    player.destroy();
+  overlapPlaneGoal(plane, goal) {
+    if (plane.winning) {
+      return;
+    }
+
+    plane.winning = true;
+  }
+
+  damagePlane(plane, amount) {
+    plane.damage += amount;
+  }
+
+  overlapPlaneBullet(plane, bullet) {
+    this.damagePlane(plane, 10);
     bullet.destroy();
   }
 
-  overlapEnemyPlayerBullet(enemy, bullet) {
-    enemy.destroy();
-    bullet.destroy();
-  }
+  overlapPlanePlane(plane1, plane2) {
+    const {now} = this.time;
 
-  overlapPlayerEnemy(player, enemy) {
-    //player.destroy();
-    //enemy.destroy();
-  }
+    const debounce = 100;
+    if (now > (plane1.planeCollideDebounce[plane2] || 0) || now > (plane2.planeCollideDebounce[plane1] || 0)) {
+      this.damagePlane(plane1, 10);
+      this.damagePlane(plane2, 10);
+      plane1.planeCollideDebounce[plane2] = now + debounce;
+      plane2.planeCollideDebounce[plane1] = now + debounce;
+    } else {
+      // debounce
+    }
 
-  overlapEnemyEnemy(enemy1, enemy2) {
-    enemy1.destroy();
-    enemy2.destroy();
+    const angle = Math.atan2(plane2.y - plane1.y, plane2.x - plane1.x);
+    const amount = 100;
+    plane2.setVelocityX(plane2.body.velocity.x + amount * Math.cos(angle));
+    plane2.setVelocityY(plane2.body.velocity.y + amount * Math.sin(angle));
+    plane1.setVelocityX(plane1.body.velocity.x + amount * -Math.cos(angle));
+    plane1.setVelocityY(plane1.body.velocity.y + amount * -Math.sin(angle));
   }
 
   setupAnimations() {
@@ -176,7 +216,7 @@ export default class PlayScene extends SuperScene {
 
   processInput(time, dt) {
     const {command, level} = this;
-    const {player} = level;
+    const {currentPlane} = level;
 
     let thrust = 0;
     let roll = 0;
@@ -218,124 +258,242 @@ export default class PlayScene extends SuperScene {
       roll = dx;
     }
 
-    player.thrust = thrust;
-    player.roll = roll;
+    currentPlane.thrust = thrust;
+    currentPlane.roll = roll;
+
+    if (currentPlane.winning) {
+      currentPlane.thrust = 0;
+      currentPlane.roll = 0;
+    }
+  }
+
+  selectInput(time, dt) {
+    const {command, level} = this;
+
+    let dIdx = 0;
+    let stickInput;
+
+    if (command.right.held) {
+      dIdx = 1;
+    } else if (command.left.held) {
+      dIdx = -1;
+    }
+
+    let dx = 0;
+    let dy = 0;
+    if (command.lstick.held) {
+      [dx, dy] = command.lstick.held;
+      stickInput = true;
+    } else if (command.rstick.held) {
+      [dx, dy] = command.rstick.held;
+      stickInput = true;
+    }
+
+    if (stickInput) {
+      if (Math.abs(dx) > 0.9) {
+        dx = dx < 0 ? -1 : 1;
+        dy = 0;
+      } else if (Math.abs(dy) > 0.9) {
+        dy = dy < 0 ? -1 : 1;
+        dx = 0;
+      }
+
+      if (dx < -0.2) {
+        dIdx = -1;
+      } else if (dx > 0.2) {
+        dIdx = 1;
+      }
+    }
+
+    if (dIdx && level.debouncePlaneSelect) {
+      return;
+    } else if (!dIdx) {
+      level.debouncePlaneSelect = false;
+      return;
+    }
+
+    const planes = level.availablePlanes;
+    level.planeIndex = (level.planeIndex + planes.length + dIdx) % planes.length;
+    const plane = planes[level.planeIndex];
+
+    this.cameraFollow(plane);
+    level.debouncePlaneSelect = true;
   }
 
   fixedUpdate(time, dt) {
-    const {level, physics} = this;
-    const {player} = level;
-
-    this.processInput(time, dt);
-
-    this.thrusters(dt);
-
-    this.tradeoff(dt);
-    this.ailerons(dt);
-    this.gravity(dt);
-    this.booster(dt);
-    this.relativity(dt);
-    this.drag(dt);
-  }
-
-  drag(dt) {
     const {level} = this;
-    const {player} = level;
+    const {complete, changingPlanes, planes} = level;
 
-    if (Math.abs(player.thrust) < 0.01) {
-      player.setVelocityX(player.body.velocity.x * prop('physics.drag'));
+    if (complete) {
+    } else if (changingPlanes) {
+      this.selectInput(time, dt);
+    } else {
+      this.processInput(time, dt);
+
+      planes.forEach((plane) => {
+        if (!plane.nan && (isNaN(plane.x) || isNaN(plane.y))) {
+          console.warn('plane is NaN\'d');
+          plane.nan = true;
+        }
+
+        this.thrusters(plane, dt);
+        this.tradeoff(plane, dt);
+        this.ailerons(plane, dt);
+        this.gravity(plane, dt);
+        this.booster(plane, dt);
+        this.relativity(plane, dt);
+        this.drag(plane, dt);
+        this.jelly(plane, dt);
+      });
     }
   }
 
-  relativity(dt) {
-    const {level} = this;
-    const {player} = level;
-    const {gunThrust} = player;
+  jelly(plane, dt) {
+    const {time, level} = this;
+    const {now} = time;
+    const {currentPlane} = level;
 
-    const squish = prop('player.squish');
-    const factor = player.thrust / squish;
-    player.squishFactor = factor * 0.9 + player.squishFactor * 0.1;
-    player.setScale(1 - player.squishFactor, 1 + player.squishFactor);
-
-    this.timeScale = 1 + gunThrust * prop('physics.timeThrust');
-    this.camera.zoom = 1 + gunThrust * prop('physics.zoomThrust');
-  }
-
-  thrusters(dt) {
-    const {level, physics} = this;
-    const {player} = level;
-
-    const desiredPercent = Math.max(0, level.gunCooldown - this.time.now) / prop('gun.cooldown');
-    const gunThrust = player.gunThrust = desiredPercent * 0.1 + player.gunThrust * 0.9;
-    player.thrust += prop('gun.thrustBoost') * gunThrust;
-
-    const max = (1 + prop('gun.thrustMax') * gunThrust) * prop('player.maxVelocity');
-    player.body.setMaxVelocity(max, max);
-  }
-
-  tradeoff(dt) {
-    const {level, physics} = this;
-    const {player} = level;
-
-    if (player.thrust > 1) {
-      player.roll *= prop('player.boostRollThrustFactor');
-    } else if (player.thrust) {
-      player.roll *= prop('player.rollThrustFactor');
+    if (!plane.winning || plane.inert) {
+      return;
     }
-    if (player.roll) {
-      player.thrust *= prop('player.thrustRollFactor');
+
+    const threshold = 0.1;
+    if (!plane.done && Math.abs(plane.body.velocity.x) < threshold && Math.abs(plane.body.velocity.y) < threshold) {
+      plane.done = now;
+      plane.setVelocityX(0);
+      plane.setVelocityY(0);
+    }
+
+    if (now - plane.done > prop('goal.wait')) {
+      plane.inert = true;
+
+      if (plane === currentPlane) {
+        this.changePlanes();
+      }
     }
   }
 
-  ailerons(dt) {
+  changePlanes() {
     const {level} = this;
-    const {player} = level;
-    const {angle, roll} = player;
+    if (level.changingPlanes) {
+      return;
+    }
 
-    const theta = player.theta = Angle2Theta(player.angle);
-    player.sin = Math.sin(theta);
-    player.cos = Math.cos(theta);
+    // this.physics.world.pause();
 
-    player.body.setAngularVelocity(roll * prop('player.droll'));
+    level.availablePlanes = level.planes.filter((p) => !p.winning).sort((a, b) => b.x - a.x);
+
+    if (!level.availablePlanes.length) {
+      this.completeLevel();
+      return;
+    }
+
+    level.planeIndex = 0;
+    level.changingPlanes = true;
   }
 
-  gravity(dt) {
+  completeLevel() {
     const {level} = this;
-    const {player} = level;
 
+    if (level.complete) {
+      return;
+    }
+
+    level.complete = true;
+    console.log('complete');
+  }
+
+  drag(plane, dt) {
+    if (plane.winning) {
+      plane.setVelocityX(plane.body.velocity.x * prop('physics.goalDrag'));
+      plane.setVelocityY(plane.body.velocity.y * prop('physics.goalDrag'));
+      return;
+    }
+
+    if (Math.abs(plane.thrust) < 0.01) {
+      plane.setVelocityX(plane.body.velocity.x * prop('physics.drag'));
+    }
+  }
+
+  relativity(plane, dt) {
+    const {level} = this;
+    const {gunThrust} = plane;
+
+    const squish = prop('plane.squish');
+    const factor = plane.thrust / squish;
+
+    plane.squishFactor = factor * 0.9 + (plane.squishFactor || 0) * 0.1;
+    plane.setScale(1 - plane.squishFactor, 1 + plane.squishFactor);
+
+    if (plane === level.currentPlane) {
+      this.timeScale = 1 + gunThrust * prop('physics.timeThrust');
+      this.camera.zoom = 1 + gunThrust * prop('physics.zoomThrust');
+    }
+  }
+
+  thrusters(plane, dt) {
+    const desiredPercent = Math.max(0, plane.gunCooldown - this.time.now) / prop('gun.cooldown');
+    const gunThrust = plane.gunThrust = desiredPercent * 0.1 + (plane.gunThrust || 0) * 0.9;
+    plane.thrust += prop('gun.thrustBoost') * gunThrust;
+
+    const max = (1 + prop('gun.thrustMax') * gunThrust) * prop('plane.maxVelocity');
+    plane.body.setMaxVelocity(max, max);
+  }
+
+  tradeoff(plane, dt) {
+    if (plane.thrust > 1) {
+      plane.roll *= prop('plane.boostRollThrustFactor');
+    } else if (plane.thrust) {
+      plane.roll *= prop('plane.rollThrustFactor');
+    }
+    if (plane.roll) {
+      plane.thrust *= prop('plane.thrustRollFactor');
+    }
+  }
+
+  ailerons(plane, dt) {
+    const {angle, roll} = plane;
+
+    const theta = plane.theta = Angle2Theta(angle);
+    plane.sin = Math.sin(theta);
+    plane.cos = Math.cos(theta);
+
+    plane.body.setAngularVelocity(roll * prop('plane.droll'));
+  }
+
+  gravity(plane, dt) {
     let ay = 0;
     let ax = 0;
 
-    if (player.thrust > 0) {
-      ay = prop('player.thrustGravity');
-      ay -= player.thrust * prop('player.power') * -1 * player.cos;
-      ax = player.thrust * prop('player.power') * -1 * player.sin;
-    } else {
-      ay = prop('player.gravity');
+    if (plane.thrust > 0) {
+      if (!plane.winning) {
+        ay = prop('plane.thrustGravity');
+      }
+
+      ay -= plane.thrust * prop('plane.power') * -1 * plane.cos;
+      ax = plane.thrust * prop('plane.power') * -1 * plane.sin;
+    } else if (!plane.winning) {
+      ay = prop('plane.gravity');
     }
 
-    player.body.setAccelerationX(ax);
-    player.body.setAccelerationY(ay);
+    plane.body.setAccelerationX(ax);
+    plane.body.setAccelerationY(ay);
   }
 
-  boosterPosition(bonus = 0) {
-    const {level} = this;
-    const {player} = level;
+  boosterPosition(plane, bonus = 0) {
     const {
       x, y, width, height, theta,
-    } = player;
+    } = plane;
 
     const bx = x + (width + bonus) * Math.sin(theta);
     const by = y + (height + bonus) * (-Math.cos(theta));
     return [bx, by];
   }
 
-  booster(dt) {
-    const {level} = this;
-    const {player} = level;
-    const {booster} = player;
+  booster(plane, dt) {
+    const {booster} = plane;
 
-    if (player.thrust <= 0.01) {
+    if (plane.thrust <= 0.01) {
       booster.alpha = 0;
       booster.bonus = 0;
     } else {
@@ -343,17 +501,17 @@ export default class PlayScene extends SuperScene {
     }
 
     let distFactor = (Math.sin(this.command.up.heldFrames / prop('booster.bounce')) + 1) / 2;
-    distFactor += Math.max(1, player.thrust) - 1;
-    distFactor *= 1 - player.roll;
+    distFactor += Math.max(1, plane.thrust) - 1;
+    distFactor *= 1 - plane.roll;
 
     const desiredBonus = distFactor * prop('booster.distance');
-    const currentBonus = booster.bonus;
+    const currentBonus = booster.bonus || 0;
 
     booster.bonus = desiredBonus * 0.1 + currentBonus * 0.9;
 
-    [booster.x, booster.y] = this.boosterPosition(booster.bonus);
+    [booster.x, booster.y] = this.boosterPosition(plane, booster.bonus);
 
-    booster.angle = player.angle;
+    booster.angle = plane.angle;
   }
 
   textSize(options) {
@@ -382,27 +540,6 @@ export default class PlayScene extends SuperScene {
 
   renderTimeSightFrameInto(scene, phantomDt, time, dt, isLast) {
     const objects = [];
-    const {player} = this.level;
-
-    if (!this.timeSightX) {
-      this.timeSightX = this.timeSightY = 0;
-    }
-
-    const prevX = this.timeSightX;
-    const prevY = this.timeSightY;
-
-    if (isLast || Math.sqrt((player.x - prevX) * (player.x - prevX) + (player.y - prevY) * (player.y - prevY)) >= 28) {
-      const ghost = scene.physics.add.sprite(player.x, player.y, 'player');
-      ghost.angle = player.angle;
-      ghost.alpha = 0.2;
-      objects.push(ghost);
-
-      ghost.setScale(player.scaleX, player.scaleY);
-
-      this.timeSightX = player.x;
-      this.timeSightY = player.y;
-    }
-
     return objects;
   }
 
