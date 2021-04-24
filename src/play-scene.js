@@ -46,7 +46,18 @@ export default class PlayScene extends SuperScene {
   create(config) {
     super.create(config);
 
+    const level = this.createLevel('test');
+    level.player = this.createPlayer();
+
     this.setupPhysics();
+  }
+
+  createPlayer(config) {
+    const {level} = this;
+    const tile = level.mapLookups['@'][0];
+    const [x, y] = this.positionToScreenCoordinate(tile.x, tile.y);
+    const player = this.physics.add.sprite(x, y, 'player');
+    return player;
   }
 
   setupPhysics() {
@@ -56,7 +67,8 @@ export default class PlayScene extends SuperScene {
   }
 
   processInput(time, dt) {
-    const {command} = this;
+    const {command, level} = this;
+    const {player} = level;
 
     let dx = 0;
     let dy = 0;
@@ -98,11 +110,24 @@ export default class PlayScene extends SuperScene {
       dx = dy = 0;
     }
 
-    console.log(dx, dy);
+    player.setVelocityX(player.body.velocity.x + dx * dt);
+    player.setVelocityY(player.body.velocity.y + dy * dt);
   }
 
   fixedUpdate(time, dt) {
     this.processInput(time, dt);
+
+    this.drag(dt);
+  }
+
+  drag(dt) {
+    const {level} = this;
+    const {player} = level;
+
+    const fps = 1000 / 60;
+    const rate = dt / fps;
+    player.setVelocityX(player.body.velocity.x * rate * prop('physics.drag'));
+    player.setVelocityY(player.body.velocity.y * rate * prop('physics.drag'));
   }
 
   textSize(options) {

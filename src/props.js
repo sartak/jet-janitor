@@ -80,10 +80,22 @@ export const shaderPipelines = {
 export const propSpecs = {
   ...builtinPropSpecs(commands, shaderCoordFragments, shaderColorFragments),
 
+  'physics.drag': [0.9, 0, 1],
+
+  'player.x': [0, null, 'level.player.x'],
+  'player.y': [0, null, 'level.player.y'],
+  'player.vx': [0.1, null, 'level.player.body.velocity.x'],
+  'player.vy': [0.1, null, 'level.player.body.velocity.y'],
 };
 
 export const tileDefinitions = {
   '.': null, // background
+  '@': null, // player
+  '#': { // wall
+    image: 'wall',
+    group: 'wall',
+    isStatic: true,
+  },
 };
 
 preprocessPropSpecs(propSpecs, particleImages);
