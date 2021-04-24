@@ -4,6 +4,7 @@ import booster from './sprites/booster.png';
 import bullet0 from './sprites/bullet0.png';
 import enemyA from './sprites/enemyA.png';
 import player from './sprites/player.png';
+import turret from './sprites/turret.png';
 import wall from './images/wall.png';
 
 export const imageAssets = {
@@ -15,6 +16,7 @@ export const spriteAssets = {
   bullet0,
   enemyA,
   player,
+  turret,
 };
 
 export const musicAssets = {

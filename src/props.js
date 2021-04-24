@@ -11,7 +11,6 @@ export const commands = {
   shoot: {
     input: ['keyboard.Z', 'gamepad.A'],
     execute: 'shoot',
-    cooldown: 300,
   },
 
   nextGun: {
@@ -119,13 +118,11 @@ export const propSpecs = {
   'currentPlane.vy': [0.1, null, 'level.currentPlane.body.velocity.y'],
   'currentPlane.thrust': [0.1, null, 'level.currentPlane.thrust'],
   'currentPlane.roll': [0.1, null, 'level.currentPlane.roll'],
-  'currentPlane.sin': [0.1, null, 'level.currentPlane.sin'],
-  'currentPlane.cos': [0.1, null, 'level.currentPlane.cos'],
   'currentPlane.angle': [0.1, null, 'level.currentPlane.angle'],
   'currentPlane.theta': [0.1, null, 'level.currentPlane.theta'],
   'currentPlane.accelerationX': [0.1, null, 'level.currentPlane.body.acceleration.x'],
   'currentPlane.accelerationY': [0.1, null, 'level.currentPlane.body.acceleration.y'],
-  'currentPlane.gunThrust': [0.1, null, 'level.currentPlane.gunThrust'],
+  'currentPlane.afterburnerThrust': [0.1, null, 'level.currentPlane.afterburnerThrust'],
 
   'booster.x': [0, null, 'level.currentPlane.booster.x'],
   'booster.y': [0, null, 'level.currentPlane.booster.y'],
@@ -135,17 +132,21 @@ export const propSpecs = {
   'booster.bonus': [0.1, null, 'level.currentPlane.booster.bonus'],
   'booster.shockOffset': [32, 0, 100],
 
+  'afterburner.currentCooldown': [0, null, 'level.currentPlane.afterburnerCooldown'],
+  'afterburner.cooldown': [2000, 0, 10000],
+  'afterburner.thrustBoost': [3, 0, 10],
+  'afterburner.thrustMax': [1.0, 0, 10],
+
   'gun.current': [0, null, 'level.currentPlane.currentGun'],
-  'gun.currentCooldown': [0, null, 'level.currentPlane.gunCooldown'],
-  'gun.cooldown': [2000, 0, 10000],
-  'gun.thrustBoost': [3, 0, 10],
-  'gun.thrustMax': [1.0, 0, 10],
   'gun.next': [(scene) => scene.nextGun()],
   'gun.prev': [(scene) => scene.prevGun()],
 
   'gun.0.speed': [500, 0, 10000],
+  'gun.0.cooldown': [500, 0, 10000],
   'gun.1.speed': [500, 0, 10000],
+  'gun.1.cooldown': [500, 0, 10000],
   'gun.2.speed': [500, 0, 10000],
+  'gun.2.cooldown': [500, 0, 10000],
 
   'goal.wait': [1000, 0, 10000],
   'goal.planeIndex': [0, null, 'level.planeIndex'],
@@ -229,6 +230,12 @@ export const tileDefinitions = {
     plane: true,
     image: 'enemyA',
     group: 'plane',
+  },
+  T: {
+    plane: true,
+    image: 'turret',
+    group: 'turret',
+    isStatic: true,
   },
 };
 

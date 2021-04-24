@@ -50,7 +50,7 @@ export default class PlayScene extends SuperScene {
     super.create(config);
 
     const level = this.level = this.createLevel('test');
-    const hud = this.hud = this.createHud();
+    this.hud = this.createHud();
 
     this.setupPhysics();
 
@@ -64,19 +64,32 @@ export default class PlayScene extends SuperScene {
     level.planes = [...level.groups.plane.objects];
     level.planeIndex = 0;
     level.currentPlane = level.planes[level.planeIndex];
+    level.turrets = [...level.groups.turret.objects];
 
     const goal = level.mapLookups.$[0];
     const [, goalY] = this.positionToScreenCoordinate(goal.x, goal.y);
     level.goalDepth = goalY;
 
+    const cooldowns = [];
+    for (let i = 0; i < GUNS; i += 1) {
+      cooldowns.push(-100000);
+    }
+
     level.planes.forEach((plane) => {
       this.createBooster(plane);
-      plane.gunCooldown = -100000;
+      plane.afterburnerCooldown = -100000;
       plane.currentGun = 0;
       plane.thrust = 0;
       plane.roll = 0;
       plane.damage = 0;
       plane.planeCollideDebounce = {};
+      plane.gunCooldowns = [...cooldowns];
+    });
+
+    level.turrets.forEach((turret) => {
+      turret.afterburnerCooldown = -100000;
+      turret.currentGun = 0;
+      turret.gunCooldowns = [...cooldowns];
     });
 
     return level;
@@ -161,11 +174,11 @@ export default class PlayScene extends SuperScene {
       return;
     }
 
-    if (currentPlane.gunCooldown && currentPlane.gunCooldown > now) {
+    if (currentPlane.afterburnerCooldown > now) {
       return;
     }
 
-    currentPlane.gunCooldown = now + prop('gun.cooldown');
+    currentPlane.afterburnerCooldown = now + prop('afterburner.cooldown');
     currentPlane.currentGun = idx;
 
     const [x, y] = this.boosterPosition(currentPlane, prop('booster.shockOffset'));
@@ -184,15 +197,13 @@ export default class PlayScene extends SuperScene {
     this.setGun(((currentPlane.currentGun + GUNS) - 1) % GUNS);
   }
 
-  createBullet(shooter) {
+  createBullet(shooter, type, theta = Angle2Theta(shooter.angle), thetaFix) {
     const {level} = this;
-    const type = shooter.currentGun;
-    const {x, y, angle} = shooter;
+    const {x, y} = shooter;
 
     const bullet = level.bullets.create(x, y, `bullet${type}`);
+    bullet.angle = -theta / Math.PI * 180;
     bullet.shooter = shooter;
-    bullet.angle = angle;
-    const theta = bullet.theta = Angle2Theta(angle);
     const speed = prop(`gun.${type}.speed`);
 
     const vx = /* shooter.body.velocity.x +*/ speed * -Math.sin(theta);
@@ -207,20 +218,27 @@ export default class PlayScene extends SuperScene {
     return bullet;
   }
 
-  shoot() {
-    const {level} = this;
-    const {currentPlane} = level;
+  shoot(object = this.level.currentPlane, theta) {
+    const {level, time} = this;
+    const {now} = time;
 
     if (level.changingPlanes) {
       this.selectedPlane();
       return;
     }
 
-    if (currentPlane.winning) {
+    if (object.winning) {
       return;
     }
 
-    this.createBullet(currentPlane);
+    const {currentGun, gunCooldowns} = object;
+
+    if (gunCooldowns[currentGun] > now) {
+      return;
+    }
+
+    gunCooldowns[currentGun] = now + prop(`gun.${currentGun}.cooldown`);
+    this.createBullet(object, object.currentGun, theta);
   }
 
   selectedPlane() {
@@ -240,12 +258,17 @@ export default class PlayScene extends SuperScene {
   setupPhysics() {
     const {level, physics} = this;
     const {groups, bullets} = level;
-    const {wall, goal, plane} = groups;
+    const {
+      wall, goal, plane, pregoal, turret,
+    } = groups;
 
     physics.add.collider(plane.group, wall.group, null, (...args) => this.overlapPlaneWall(...args));
     physics.add.collider(plane.group, plane.group, null, (...args) => this.overlapPlanePlane(...args));
+    physics.add.collider(plane.group, turret.group, null, (...args) => this.overlapPlaneTurret(...args));
     physics.add.overlap(plane.group, bullets, null, (...args) => this.overlapPlaneBullet(...args));
     physics.add.overlap(plane.group, goal.group, null, (...args) => this.overlapPlaneGoal(...args));
+    physics.add.overlap(plane.group, goal.group, null, (...args) => this.overlapPlaneGoal(...args));
+    physics.add.overlap(plane.group, pregoal.group, null, (...args) => this.overlapPlanePregoal(...args));
   }
 
   overlapPlaneGoal(plane, goal) {
@@ -254,6 +277,14 @@ export default class PlayScene extends SuperScene {
     }
 
     plane.winning = true;
+  }
+
+  overlapPlanePregoal(plane, pregoal) {
+    if (plane.suction) {
+      return;
+    }
+
+    plane.suction = true;
   }
 
   damagePlane(plane, amount) {
@@ -306,12 +337,29 @@ export default class PlayScene extends SuperScene {
     plane1.setVelocityY(plane1.body.velocity.y + amount * -Math.sin(angle));
   }
 
+  overlapPlaneTurret(plane, turret) {
+    const {now} = this.time;
+
+    const debounce = 200;
+    const damage = this.randBetween('damage', 10, 20);
+    if (now > (plane.planeCollideDebounce[turret] || 0)) {
+      this.damagePlane(plane, damage);
+      plane.planeCollideDebounce[turret] = now + debounce;
+    } else {
+      // debounce
+    }
+
+    const angle = Math.atan2(turret.y - plane.y, turret.x - plane.x);
+    const amount = 100;
+    plane.setVelocityX(plane.body.velocity.x + amount * -Math.cos(angle));
+    plane.setVelocityY(plane.body.velocity.y + amount * -Math.sin(angle));
+  }
+
   setupAnimations() {
   }
 
-  processInput(time, dt) {
-    const {command, level} = this;
-    const {currentPlane} = level;
+  processInput(plane, dt) {
+    const {command} = this;
 
     let thrust = 0;
     let roll = 0;
@@ -353,13 +401,8 @@ export default class PlayScene extends SuperScene {
       roll = dx;
     }
 
-    currentPlane.thrust = thrust;
-    currentPlane.roll = roll;
-
-    if (currentPlane.winning) {
-      currentPlane.thrust = 0;
-      currentPlane.roll = 0;
-    }
+    plane.thrust = thrust;
+    plane.roll = roll;
   }
 
   selectInput(time, dt) {
@@ -417,34 +460,169 @@ export default class PlayScene extends SuperScene {
 
   fixedUpdate(time, dt) {
     const {level} = this;
-    const {complete, changingPlanes, planes} = level;
+    const {
+      complete, changingPlanes, planes, currentPlane, turrets,
+    } = level;
 
     if (complete) {
     } else if (changingPlanes) {
+      this.updateScore();
       this.selectInput(time, dt);
     } else {
-      this.processInput(time, dt);
-
+      this.updateScore();
       planes.forEach((plane) => {
         if (!plane.nan && (isNaN(plane.x) || isNaN(plane.y))) {
           console.warn('plane is NaN\'d');
           plane.nan = true;
         }
 
+        if (plane === currentPlane) {
+          this.processInput(plane, dt);
+        }
+
+        this.winner(plane, dt);
         this.thrusters(plane, dt);
         this.tradeoff(plane, dt);
         this.ailerons(plane, dt);
-        this.gravity(plane, dt);
+
+        if (plane === currentPlane) {
+          this.gravity(plane, dt);
+        }
+
         this.booster(plane, dt);
         this.relativity(plane, dt);
         this.drag(plane, dt);
+        this.suction(plane, dt);
         this.jelly(plane, dt);
+      });
+
+      turrets.forEach((turret) => {
+        this.shmup(turret, currentPlane, dt);
       });
     }
   }
 
-  renderUpdate(time, dt) {
-    this.updateScore();
+  autopilot(plane, currentPlane, dt) {
+    const desiredTheta = Math.atan2(currentPlane.y - plane.y, currentPlane.x - plane.x) / 2;
+    const desiredAngle = (desiredTheta / Math.PI * 360) + 90;
+    const a = (plane.angle + 360) % 360;
+    if (Math.abs(desiredAngle - a) < 10) {
+      plane.roll = 0;
+      // plane.thrust = 1;
+    } else if (desiredAngle + 720 < a + 720 || desiredAngle + 720 + 180 > a + 720) {
+      plane.roll = -1;
+      // plane.thrust = 0;
+    } else {
+      plane.roll = 1;
+      // plane.thrust = 0;
+    }
+  }
+
+  /*
+  autopilot(plane, currentPlane, dt) {
+    const {tileWidth, tileHeight, level} = this;
+    const {map} = level;
+
+    const px = plane.x;// + plane.width / 2;
+    const py = plane.y;// + plane.height / 2;
+
+    // only autopilot every second
+    if (!plane.autopilot) {
+      plane.autopilot = {t: 0, lines: []};
+    } else {
+      plane.autopilot.t += dt;
+      if (plane.autopilot.t > 5) {
+        plane.autopilot.t = 0;
+        plane.autopilot.lines.forEach((line) => line.destroy());
+      } else {
+        plane.autopilot.lines.forEach((line) => {
+          line.x1 = px;
+          line.y1 = py;
+        });
+
+        return;
+      }
+    }
+
+    let angles = [];
+    const lines = [];
+
+    for (let angle = 0; angle < 360; angle += 30) {
+      let x = px;
+      let y = py;
+      const theta = Angle2Theta(angle);
+      const dx = tileWidth * Math.cos(theta);
+      const dy = tileHeight * Math.sin(theta);
+      let obstructedDepth = null;
+      let fx = px;
+      let fy = py;
+
+      for (let depth = 0; depth < 10; depth += 1) {
+        x += dx;
+        y += dy;
+
+        let [tx, ty] = this.screenCoordinateToPositionHalf(x, y);
+        tx = tx.toFixed(0);
+        ty = ty.toFixed(0);
+        [fx, fy] = this.positionToScreenCoordinateHalf(tx, ty);
+
+        if (!map[ty]) {
+          obstructedDepth = depth;
+          break;
+        }
+
+        const tile = map[ty][tx];
+        if (!tile || tile.glyph === '#' || tile.glyph === '$' || tile.glyph === '1') {
+          obstructedDepth = depth;
+          break;
+        }
+      }
+
+      if (obstructedDepth === null) {
+        obstructedDepth = 10;
+      }
+
+      angles.push([angle, obstructedDepth]);
+    }
+
+    angles.sort((a, b) => b[1] - a[1]);
+    const bestDepth = angles[0][1];
+    angles = angles.filter((a) => a[1] === bestDepth).map(([a]) => a);
+
+    const angle = plane.angle + 180; // 0-360
+    let bestAngle = null;
+    let bestDiff = null;
+    angles.forEach((a) => {
+      const d = (a - angle) % 360;
+      console.log(a, angle, d);
+      if (bestDiff === null || d < bestDiff) {
+        bestAngle = a;
+        bestDiff = d;
+      }
+    });
+
+    plane.autopilot.lines = lines;
+    plane.autopilot.angles = angles;
+  }
+  */
+
+  shmup(turret, currentPlane, dt) {
+    const desiredTheta = Math.atan2(currentPlane.y - turret.y, currentPlane.x - turret.x) / 2;
+    this.shoot(turret, desiredTheta);
+  }
+
+  winner(plane, dt) {
+    if (plane.winning) {
+      plane.thrust = 0;
+      plane.roll = 0;
+    }
+  }
+
+  suction(plane, dt) {
+    const depth = plane.y - this.level.goalDepth;
+    if ((!plane.winning || depth < 0) && plane.suction) {
+      plane.body.setAccelerationY(plane.body.acceleration.y + 100);
+    }
   }
 
   jelly(plane, dt) {
@@ -516,7 +694,7 @@ export default class PlayScene extends SuperScene {
 
   relativity(plane, dt) {
     const {level} = this;
-    const {gunThrust} = plane;
+    const {afterburnerThrust} = plane;
 
     const squish = prop('plane.squish');
     const factor = plane.thrust / squish;
@@ -525,17 +703,17 @@ export default class PlayScene extends SuperScene {
     plane.setScale(1 - plane.squishFactor, 1 + plane.squishFactor);
 
     if (plane === level.currentPlane) {
-      this.timeScale = 1 + gunThrust * prop('physics.timeThrust');
-      this.camera.zoom = 1 + gunThrust * prop('physics.zoomThrust');
+      this.timeScale = 1 + afterburnerThrust * prop('physics.timeThrust');
+      this.camera.zoom = 1 + afterburnerThrust * prop('physics.zoomThrust');
     }
   }
 
   thrusters(plane, dt) {
-    const desiredPercent = Math.max(0, plane.gunCooldown - this.time.now) / prop('gun.cooldown');
-    const gunThrust = plane.gunThrust = desiredPercent * 0.1 + (plane.gunThrust || 0) * 0.9;
-    plane.thrust += prop('gun.thrustBoost') * gunThrust;
+    const desiredPercent = Math.max(0, plane.afterburnerCooldown - this.time.now) / prop('afterburner.cooldown');
+    const afterburnerThrust = plane.afterburnerThrust = desiredPercent * 0.1 + (plane.afterburnerThrust || 0) * 0.9;
+    plane.thrust += prop('afterburner.thrustBoost') * afterburnerThrust;
 
-    const max = (1 + prop('gun.thrustMax') * gunThrust) * prop('plane.maxVelocity');
+    const max = (1 + prop('afterburner.thrustMax') * afterburnerThrust) * prop('plane.maxVelocity');
     plane.body.setMaxVelocity(max, max);
   }
 
@@ -553,10 +731,7 @@ export default class PlayScene extends SuperScene {
   ailerons(plane, dt) {
     const {angle, roll} = plane;
 
-    const theta = plane.theta = Angle2Theta(angle);
-    plane.sin = Math.sin(theta);
-    plane.cos = Math.cos(theta);
-
+    plane.theta = Angle2Theta(angle);
     plane.body.setAngularVelocity(roll * prop('plane.droll'));
   }
 
@@ -569,8 +744,8 @@ export default class PlayScene extends SuperScene {
         ay = prop('plane.thrustGravity');
       }
 
-      ay -= plane.thrust * prop('plane.power') * -1 * plane.cos;
-      ax = plane.thrust * prop('plane.power') * -1 * plane.sin;
+      ay -= plane.thrust * prop('plane.power') * -1 * Math.cos(plane.theta);
+      ax = plane.thrust * prop('plane.power') * -1 * Math.sin(plane.theta);
     } else if (!plane.winning) {
       ay = prop('plane.gravity');
     }

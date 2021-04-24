@@ -2702,6 +2702,20 @@ export default class SuperScene extends Phaser.Scene {
     return [x * tileWidth + xBorder + halfWidth, y * tileHeight + yBorder + halfHeight];
   }
 
+  screenCoordinateToPosition(x, y) {
+    const {
+      xBorder, yBorder, tileWidth, tileHeight,
+    } = this;
+    return [(x - xBorder) / tileWidth, (y - yBorder) / tileHeight];
+  }
+
+  screenCoordinateToPositionHalf(x, y) {
+    const {
+      xBorder, yBorder, tileWidth, tileHeight, halfWidth, halfHeight,
+    } = this;
+    return [(x - xBorder - halfWidth) / tileWidth, (y - yBorder - halfHeight) / tileHeight];
+  }
+
   timeSightMouseDrag() {
     const {activePointer} = this.game.input;
     if (activePointer.isDown) {
