@@ -6,7 +6,8 @@ import analytics from './scaffolding/lib/analytics';
 
 const GUNS = 3;
 
-const Angle2Theta = (angle) => (angle + 180) / 180 * Math.PI;
+const Angle2Theta = (angle) => angle / 180 * Math.PI;
+const Theta2Angle = (theta) => theta / Math.PI * 180;
 
 export default class PlayScene extends SuperScene {
   constructor() {
@@ -197,17 +198,17 @@ export default class PlayScene extends SuperScene {
     this.setGun(((currentPlane.currentGun + GUNS) - 1) % GUNS);
   }
 
-  createBullet(shooter, type, theta = Angle2Theta(shooter.angle), thetaFix) {
+  createBullet(shooter, type, theta) {
     const {level} = this;
     const {x, y} = shooter;
 
     const bullet = level.bullets.create(x, y, `bullet${type}`);
-    bullet.angle = -theta / Math.PI * 180;
     bullet.shooter = shooter;
     const speed = prop(`gun.${type}.speed`);
 
-    const vx = /* shooter.body.velocity.x +*/ speed * -Math.sin(theta);
-    const vy = /* shooter.body.velocity.y +*/ speed * Math.cos(theta);
+    bullet.angle = Theta2Angle(theta) + 90;
+    const vx = speed * Math.cos(theta);
+    const vy = speed * Math.sin(theta);
 
     bullet.setVelocity(vx, vy);
 
@@ -218,7 +219,7 @@ export default class PlayScene extends SuperScene {
     return bullet;
   }
 
-  shoot(object = this.level.currentPlane, theta) {
+  shoot(object = this.level.currentPlane, theta = object.theta + Math.PI / 2) {
     const {level, time} = this;
     const {now} = time;
 
@@ -502,113 +503,9 @@ export default class PlayScene extends SuperScene {
     }
   }
 
-  autopilot(plane, currentPlane, dt) {
-    const desiredTheta = Math.atan2(currentPlane.y - plane.y, currentPlane.x - plane.x) / 2;
-    const desiredAngle = (desiredTheta / Math.PI * 360) + 90;
-    const a = (plane.angle + 360) % 360;
-    if (Math.abs(desiredAngle - a) < 10) {
-      plane.roll = 0;
-      // plane.thrust = 1;
-    } else if (desiredAngle + 720 < a + 720 || desiredAngle + 720 + 180 > a + 720) {
-      plane.roll = -1;
-      // plane.thrust = 0;
-    } else {
-      plane.roll = 1;
-      // plane.thrust = 0;
-    }
-  }
-
-  /*
-  autopilot(plane, currentPlane, dt) {
-    const {tileWidth, tileHeight, level} = this;
-    const {map} = level;
-
-    const px = plane.x;// + plane.width / 2;
-    const py = plane.y;// + plane.height / 2;
-
-    // only autopilot every second
-    if (!plane.autopilot) {
-      plane.autopilot = {t: 0, lines: []};
-    } else {
-      plane.autopilot.t += dt;
-      if (plane.autopilot.t > 5) {
-        plane.autopilot.t = 0;
-        plane.autopilot.lines.forEach((line) => line.destroy());
-      } else {
-        plane.autopilot.lines.forEach((line) => {
-          line.x1 = px;
-          line.y1 = py;
-        });
-
-        return;
-      }
-    }
-
-    let angles = [];
-    const lines = [];
-
-    for (let angle = 0; angle < 360; angle += 30) {
-      let x = px;
-      let y = py;
-      const theta = Angle2Theta(angle);
-      const dx = tileWidth * Math.cos(theta);
-      const dy = tileHeight * Math.sin(theta);
-      let obstructedDepth = null;
-      let fx = px;
-      let fy = py;
-
-      for (let depth = 0; depth < 10; depth += 1) {
-        x += dx;
-        y += dy;
-
-        let [tx, ty] = this.screenCoordinateToPositionHalf(x, y);
-        tx = tx.toFixed(0);
-        ty = ty.toFixed(0);
-        [fx, fy] = this.positionToScreenCoordinateHalf(tx, ty);
-
-        if (!map[ty]) {
-          obstructedDepth = depth;
-          break;
-        }
-
-        const tile = map[ty][tx];
-        if (!tile || tile.glyph === '#' || tile.glyph === '$' || tile.glyph === '1') {
-          obstructedDepth = depth;
-          break;
-        }
-      }
-
-      if (obstructedDepth === null) {
-        obstructedDepth = 10;
-      }
-
-      angles.push([angle, obstructedDepth]);
-    }
-
-    angles.sort((a, b) => b[1] - a[1]);
-    const bestDepth = angles[0][1];
-    angles = angles.filter((a) => a[1] === bestDepth).map(([a]) => a);
-
-    const angle = plane.angle + 180; // 0-360
-    let bestAngle = null;
-    let bestDiff = null;
-    angles.forEach((a) => {
-      const d = (a - angle) % 360;
-      console.log(a, angle, d);
-      if (bestDiff === null || d < bestDiff) {
-        bestAngle = a;
-        bestDiff = d;
-      }
-    });
-
-    plane.autopilot.lines = lines;
-    plane.autopilot.angles = angles;
-  }
-  */
-
   shmup(turret, currentPlane, dt) {
-    const desiredTheta = Math.atan2(currentPlane.y - turret.y, currentPlane.x - turret.x) / 2;
-    this.shoot(turret, desiredTheta);
+    const theta = Math.atan2(currentPlane.y - turret.y, currentPlane.x - turret.x);
+    this.shoot(turret, theta);
   }
 
   winner(plane, dt) {
@@ -731,8 +628,8 @@ export default class PlayScene extends SuperScene {
   ailerons(plane, dt) {
     const {angle, roll} = plane;
 
-    plane.theta = Angle2Theta(angle);
-    plane.body.setAngularVelocity(roll * prop('plane.droll'));
+    plane.theta = Angle2Theta(angle + 180);
+    plane.body.setAngularVelocity(prop('plane.droll') * roll);
   }
 
   gravity(plane, dt) {
@@ -759,8 +656,8 @@ export default class PlayScene extends SuperScene {
       x, y, width, height, theta,
     } = plane;
 
-    const bx = x + (width + bonus) * Math.sin(theta);
-    const by = y + (height + bonus) * (-Math.cos(theta));
+    const bx = x + (width + bonus) * Math.cos(theta - Math.PI / 2);
+    const by = y + (height + bonus) * Math.sin(theta - Math.PI / 2);
     return [bx, by];
   }
 
