@@ -50,6 +50,7 @@ export default class PlayScene extends SuperScene {
     super.create(config);
 
     const level = this.level = this.createLevel('test');
+    const hud = this.hud = this.createHud();
 
     this.setupPhysics();
 
@@ -64,6 +65,10 @@ export default class PlayScene extends SuperScene {
     level.planeIndex = 0;
     level.currentPlane = level.planes[level.planeIndex];
 
+    const goal = level.mapLookups.$[0];
+    const [, goalY] = this.positionToScreenCoordinate(goal.x, goal.y);
+    level.goalDepth = goalY;
+
     level.planes.forEach((plane) => {
       this.createBooster(plane);
       plane.gunCooldown = -100000;
@@ -75,6 +80,76 @@ export default class PlayScene extends SuperScene {
     });
 
     return level;
+  }
+
+  calculateScore() {
+    const {level} = this;
+    const {goalDepth} = level;
+
+    let score = 0;
+    level.planes.forEach((plane) => {
+      let planeScore = Math.max(0, 1000 - plane.damage);
+
+      // add score for goal depth
+      if (plane.winning) {
+        planeScore += prop('goal.depthMultiplier') * Math.max(0, plane.y - goalDepth);
+      }
+
+      score += planeScore;
+    });
+
+    score = Math.max(0, score);
+
+    level.shownScore = (level.shownScore || score) * 0.9 + score * 0.1;
+    let change = null;
+
+    const shownFixed = level.shownScore.toFixed(0);
+    const scoreFixed = score.toFixed(0);
+    if (scoreFixed < shownFixed) {
+      change = false;
+    } else if (scoreFixed > shownFixed) {
+      change = true;
+    }
+
+    return [`contract: $${shownFixed}`, change, scoreFixed];
+  }
+
+  updateScore() {
+    const {hud} = this;
+    const {scoreSteady, scoreUp, scoreDown} = hud;
+
+    const [text, change] = this.calculateScore();
+    scoreSteady.text = scoreUp.text = scoreDown.text = text;
+
+    scoreSteady.alpha = scoreUp.alpha = scoreDown.alpha = 0;
+
+    if (change === true) {
+      scoreUp.alpha = 1;
+    } else if (change === false) {
+      scoreDown.alpha = 1;
+    } else {
+      scoreSteady.alpha = 1;
+    }
+  }
+
+  createHud() {
+    const hud = {};
+
+    const [scoreText] = this.calculateScore();
+
+    const scoreX = 12;
+    const scoreY = 12;
+
+    const scoreSteady = hud.scoreSteady = this.text(scoreX, scoreY, scoreText, {color: 'rgb(255, 255, 255)'});
+    scoreSteady.setScrollFactor(0);
+
+    const scoreUp = hud.scoreUp = this.text(scoreX, scoreY, scoreText, {color: 'rgb(0, 255, 0)'});
+    scoreUp.setScrollFactor(0);
+
+    const scoreDown = hud.scoreDown = this.text(scoreX, scoreY, scoreText, {color: 'rgb(255, 0, 0)'});
+    scoreDown.setScrollFactor(0);
+
+    return hud;
   }
 
   setGun(idx) {
@@ -167,7 +242,7 @@ export default class PlayScene extends SuperScene {
     const {groups, bullets} = level;
     const {wall, goal, plane} = groups;
 
-    physics.add.collider(plane.group, wall.group);
+    physics.add.collider(plane.group, wall.group, null, (...args) => this.overlapPlaneWall(...args));
     physics.add.collider(plane.group, plane.group, null, (...args) => this.overlapPlanePlane(...args));
     physics.add.overlap(plane.group, bullets, null, (...args) => this.overlapPlaneBullet(...args));
     physics.add.overlap(plane.group, goal.group, null, (...args) => this.overlapPlaneGoal(...args));
@@ -186,25 +261,42 @@ export default class PlayScene extends SuperScene {
   }
 
   overlapPlaneBullet(plane, bullet) {
-    this.damagePlane(plane, 10);
+    const damage = this.randBetween('damage', 10, 20);
+    this.damagePlane(plane, damage);
     bullet.destroy();
+  }
+
+  overlapPlaneWall(plane, wall) {
+    const {now} = this.time;
+
+    const debounce = 100;
+    const damage = this.randBetween('damage', 10, 20);
+    if (now > (plane.planeCollideDebounce.wall || 0)) {
+      this.damagePlane(plane, damage);
+      plane.planeCollideDebounce.wall = now + debounce;
+    } else {
+      // debounce
+      // return;
+    }
   }
 
   overlapPlanePlane(plane1, plane2) {
     const {now} = this.time;
 
-    const debounce = 100;
+    const debounce = 200;
+    const damage = this.randBetween('damage', 10, 20);
     if (now > (plane1.planeCollideDebounce[plane2] || 0) || now > (plane2.planeCollideDebounce[plane1] || 0)) {
-      this.damagePlane(plane1, 10);
-      this.damagePlane(plane2, 10);
+      this.damagePlane(plane1, damage);
+      this.damagePlane(plane2, damage);
       plane1.planeCollideDebounce[plane2] = now + debounce;
       plane2.planeCollideDebounce[plane1] = now + debounce;
     } else {
       // debounce
+      return;
     }
 
     const angle = Math.atan2(plane2.y - plane1.y, plane2.x - plane1.x);
-    const amount = 100;
+    const amount = 1000;
     plane2.setVelocityX(plane2.body.velocity.x + amount * Math.cos(angle));
     plane2.setVelocityY(plane2.body.velocity.y + amount * Math.sin(angle));
     plane1.setVelocityX(plane1.body.velocity.x + amount * -Math.cos(angle));
@@ -346,6 +438,10 @@ export default class PlayScene extends SuperScene {
         this.jelly(plane, dt);
       });
     }
+  }
+
+  renderUpdate(time, dt) {
+    this.updateScore();
   }
 
   jelly(plane, dt) {

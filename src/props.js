@@ -98,6 +98,8 @@ export const propSpecs = {
   'physics.timeThrust': [5, 0, 10],
   'physics.zoomThrust': [0.15, 0, 1],
 
+  'level.goalDepth': [0, null],
+
   'plane.boostRollThrustFactor': [0.3, 0, 1],
   'plane.rollThrustFactor': [0.8, 0, 1],
   'plane.thrustRollFactor': [1.0, 0, 1],
@@ -107,6 +109,9 @@ export const propSpecs = {
   'plane.power': [500, 0, 10000],
   'plane.maxVelocity': [500, 0, 10000],
   'plane.squish': [60, 1, 100],
+  'plane.wallBounce': [10000, 0, 100000],
+  'plane.planeBounce': [10000, 0, 100000],
+  'plane.bounceTime': [1000, 0, 10000],
 
   'currentPlane.x': [0, null, 'level.currentPlane.x'],
   'currentPlane.y': [0, null, 'level.currentPlane.y'],
@@ -145,6 +150,7 @@ export const propSpecs = {
   'goal.wait': [1000, 0, 10000],
   'goal.planeIndex': [0, null, 'level.planeIndex'],
   'goal.planeDebounce': [false, null, 'level.debouncePlaneSelect'],
+  'goal.depthMultiplier': [10, 0, 100],
 };
 
 export const tileDefinitions = {
@@ -155,7 +161,60 @@ export const tileDefinitions = {
     isStatic: true,
     combine: true,
   },
-  '*': {
+  $: {
+    group: 'pregoal',
+    isStatic: true,
+    combine: true,
+  },
+  1: {
+    image: 'goal',
+    group: 'goal',
+    isStatic: true,
+    combine: true,
+  },
+  2: {
+    image: 'goal',
+    group: 'goal',
+    isStatic: true,
+    combine: true,
+  },
+  3: {
+    image: 'goal',
+    group: 'goal',
+    isStatic: true,
+    combine: true,
+  },
+  4: {
+    image: 'goal',
+    group: 'goal',
+    isStatic: true,
+    combine: true,
+  },
+  5: {
+    image: 'goal',
+    group: 'goal',
+    isStatic: true,
+    combine: true,
+  },
+  6: {
+    image: 'goal',
+    group: 'goal',
+    isStatic: true,
+    combine: true,
+  },
+  7: {
+    image: 'goal',
+    group: 'goal',
+    isStatic: true,
+    combine: true,
+  },
+  8: {
+    image: 'goal',
+    group: 'goal',
+    isStatic: true,
+    combine: true,
+  },
+  9: {
     image: 'goal',
     group: 'goal',
     isStatic: true,
