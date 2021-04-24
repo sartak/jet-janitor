@@ -261,6 +261,10 @@ export default class PlayScene extends SuperScene {
   }
 
   overlapPlaneBullet(plane, bullet) {
+    if (bullet.shooter === plane) {
+      return;
+    }
+
     const damage = this.randBetween('damage', 10, 20);
     this.damagePlane(plane, damage);
     bullet.destroy();

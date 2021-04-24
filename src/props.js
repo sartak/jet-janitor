@@ -135,8 +135,8 @@ export const propSpecs = {
   'booster.bonus': [0.1, null, 'level.currentPlane.booster.bonus'],
   'booster.shockOffset': [32, 0, 100],
 
-  'gun.current': [0, null, 'level.currentGun'],
-  'gun.currentCooldown': [0, null, 'level.gunCooldown'],
+  'gun.current': [0, null, 'level.currentPlane.currentGun'],
+  'gun.currentCooldown': [0, null, 'level.currentPlane.gunCooldown'],
   'gun.cooldown': [2000, 0, 10000],
   'gun.thrustBoost': [3, 0, 10],
   'gun.thrustMax': [1.0, 0, 10],
