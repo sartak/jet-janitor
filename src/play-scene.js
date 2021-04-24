@@ -57,6 +57,9 @@ export default class PlayScene extends SuperScene {
     const tile = level.mapLookups['@'][0];
     const [x, y] = this.positionToScreenCoordinate(tile.x, tile.y);
     const player = this.physics.add.sprite(x, y, 'player');
+
+    player.facingLeft = false;
+
     return player;
   }
 
@@ -113,6 +116,14 @@ export default class PlayScene extends SuperScene {
     } else {
       dx = dy = 0;
     }
+
+    if (dx < 0) {
+      player.facingLeft = true;
+    } else if (dx > 0) {
+      player.facingLeft = false;
+    }
+
+    player.setFlipX(player.facingLeft);
 
     player.setVelocityX(player.body.velocity.x + dx * dt);
     player.setVelocityY(player.body.velocity.y + dy * dt);

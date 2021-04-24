@@ -87,12 +87,13 @@ export const propSpecs = {
   'player.y': [0, null, 'level.player.y'],
   'player.vx': [0.1, null, 'level.player.body.velocity.x'],
   'player.vy': [0.1, null, 'level.player.body.velocity.y'],
+  'player.facingLeft': [false, null, 'level.player.facingLeft'],
 };
 
 export const tileDefinitions = {
   '.': null, // background
   '@': null, // player
-  '#': { // wall
+  '#': {
     image: 'wall',
     group: 'wall',
     isStatic: true,
