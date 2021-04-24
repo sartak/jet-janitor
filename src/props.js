@@ -93,7 +93,7 @@ export const shaderPipelines = {
 export const propSpecs = {
   ...builtinPropSpecs(commands, shaderCoordFragments, shaderColorFragments),
 
-  'physics.drag': [0.9, 0, 1],
+  'physics.drag': [0.98, 0, 1],
   'physics.timeThrust': [5, 0, 10],
   'physics.zoomThrust': [0.15, 0, 1],
 
@@ -120,6 +120,9 @@ export const propSpecs = {
   'player.gunThrust': [0.1, null, 'level.player.gunThrust'],
   'player.squish': [60, 1, 100],
 
+  'booster.x': [0, null, 'level.player.booster.x'],
+  'booster.y': [0, null, 'level.player.booster.y'],
+  'booster.angle': [0, null, 'level.player.booster.angle'],
   'booster.bounce': [15, 0, 500],
   'booster.distance': [10, 0, 1000],
   'booster.bonus': [0.1, null, 'level.player.booster.bonus'],
@@ -146,6 +149,10 @@ export const tileDefinitions = {
     group: 'wall',
     isStatic: true,
     combine: true,
+  },
+  A: {
+    image: 'enemyA',
+    group: 'enemy',
   },
 };
 

@@ -49,14 +49,23 @@ export default class PlayScene extends SuperScene {
   create(config) {
     super.create(config);
 
-    const level = this.createLevel('test');
-    level.currentGun = 0;
-    level.gunCooldown = -100000;
-    level.player = this.createPlayer();
+    const level = this.level = this.createLevel('test');
 
     this.setupPhysics();
 
     this.cameraFollow(level.player);
+  }
+
+  createLevel(id) {
+    const level = super.createLevel(id);
+    level.currentGun = 0;
+    level.gunCooldown = -100000;
+    level.player = this.createPlayer();
+
+    level.playerBullets = this.physics.add.group();
+    level.enemyBullets = this.physics.add.group();
+
+    return level;
   }
 
   setGun(idx) {
@@ -86,7 +95,9 @@ export default class PlayScene extends SuperScene {
   }
 
   createBullet(shooter, type, x, y, angle) {
-    const bullet = this.physics.add.sprite(x, y, `bullet${type}`);
+    const {level} = this;
+    const group = shooter === level.player ? level.playerBullets : level.enemyBullets;
+    const bullet = group.create(x, y, `bullet${type}`);
     bullet.angle = angle;
     const theta = bullet.theta = Angle2Theta(angle);
     const speed = prop(`gun.${type}.speed`);
@@ -127,9 +138,37 @@ export default class PlayScene extends SuperScene {
 
   setupPhysics() {
     const {level, physics} = this;
-    const {player, groups} = level;
+    const {
+      player, groups, playerBullets, enemyBullets,
+    } = level;
+    const {wall, enemy} = groups;
 
-    physics.add.collider(player, groups.wall.group);
+    physics.add.collider(player, wall.group);
+    physics.add.overlap(player, enemy.group, null, (...args) => this.overlapPlayerEnemy(...args));
+    physics.add.overlap(player, enemyBullets, null, (...args) => this.overlapPlayerEnemyBullet(...args));
+
+    physics.add.overlap(enemy.group, enemy.group, null, (...args) => this.overlapEnemyEnemy(...args));
+    physics.add.overlap(enemy.group, playerBullets, null, (...args) => this.overlapEnemyPlayerBullet(...args));
+  }
+
+  overlapPlayerEnemyBullet(player, bullet) {
+    //    player.destroy();
+    bullet.destroy();
+  }
+
+  overlapEnemyPlayerBullet(enemy, bullet) {
+    enemy.destroy();
+    bullet.destroy();
+  }
+
+  overlapPlayerEnemy(player, enemy) {
+    //player.destroy();
+    //enemy.destroy();
+  }
+
+  overlapEnemyEnemy(enemy1, enemy2) {
+    enemy1.destroy();
+    enemy2.destroy();
   }
 
   setupAnimations() {
@@ -196,8 +235,16 @@ export default class PlayScene extends SuperScene {
     this.gravity(dt);
     this.booster(dt);
     this.relativity(dt);
+    this.drag(dt);
+  }
 
-    //    this.drag(dt);
+  drag(dt) {
+    const {level} = this;
+    const {player} = level;
+
+    if (Math.abs(player.thrust) < 0.01) {
+      player.setVelocityX(player.body.velocity.x * prop('physics.drag'));
+    }
   }
 
   relativity(dt) {
@@ -245,7 +292,7 @@ export default class PlayScene extends SuperScene {
     const {player} = level;
     const {angle, roll} = player;
 
-    const theta = Angle2Theta(player.angle);
+    const theta = player.theta = Angle2Theta(player.angle);
     player.sin = Math.sin(theta);
     player.cos = Math.cos(theta);
 
@@ -277,10 +324,10 @@ export default class PlayScene extends SuperScene {
     const {
       x, y, width, height, theta,
     } = player;
-    return [
-      x + (width + bonus) * Math.sin(theta),
-      y + (height + bonus) * (-Math.cos(theta)),
-    ];
+
+    const bx = x + (width + bonus) * Math.sin(theta);
+    const by = y + (height + bonus) * (-Math.cos(theta));
+    return [bx, by];
   }
 
   booster(dt) {
@@ -305,6 +352,7 @@ export default class PlayScene extends SuperScene {
     booster.bonus = desiredBonus * 0.1 + currentBonus * 0.9;
 
     [booster.x, booster.y] = this.boosterPosition(booster.bonus);
+
     booster.angle = player.angle;
   }
 
@@ -334,6 +382,26 @@ export default class PlayScene extends SuperScene {
 
   renderTimeSightFrameInto(scene, phantomDt, time, dt, isLast) {
     const objects = [];
+    const {player} = this.level;
+
+    if (!this.timeSightX) {
+      this.timeSightX = this.timeSightY = 0;
+    }
+
+    const prevX = this.timeSightX;
+    const prevY = this.timeSightY;
+
+    if (isLast || Math.sqrt((player.x - prevX) * (player.x - prevX) + (player.y - prevY) * (player.y - prevY)) >= 28) {
+      const ghost = scene.physics.add.sprite(player.x, player.y, 'player');
+      ghost.angle = player.angle;
+      ghost.alpha = 0.2;
+      objects.push(ghost);
+
+      ghost.setScale(player.scaleX, player.scaleY);
+
+      this.timeSightX = player.x;
+      this.timeSightY = player.y;
+    }
 
     return objects;
   }

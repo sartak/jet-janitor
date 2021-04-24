@@ -2,6 +2,7 @@
 
 import booster from './sprites/booster.png';
 import bullet0 from './sprites/bullet0.png';
+import enemyA from './sprites/enemyA.png';
 import player from './sprites/player.png';
 import wall from './images/wall.png';
 
@@ -12,6 +13,7 @@ export const imageAssets = {
 export const spriteAssets = {
   booster,
   bullet0,
+  enemyA,
   player,
 };
 
