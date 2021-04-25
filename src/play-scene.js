@@ -54,7 +54,7 @@ export default class PlayScene extends SuperScene {
   create(config) {
     super.create(config);
 
-    this.level = this.createLevel(config.levelIndex || 0);
+    this.level = this.createLevel(config.levelIndex || 0, config.depth || 0, config.shallowerPlanes || []);
     this.hud = this.createHud();
 
     this.setupPhysics();
@@ -66,17 +66,36 @@ export default class PlayScene extends SuperScene {
     return this.level && this.level.music;
   }
 
-  createLevel(index) {
-    const id = this.levelIds()[index];
+  createLevel(index, depth, shallowerPlanes) {
+    let id = this.levelIds()[index];
+    if (index === 0 && depth) {
+      id += '2';
+    }
+
     const level = super.createLevel(id);
 
+    const planeGroup = level.groups.plane;
     level.levelIndex = index;
+    level.depth = depth;
     level.bullets = this.physics.add.group();
-    level.planes = [...level.groups.plane.objects];
+    level.planes = [...planeGroup.objects];
     level.planeIndex = 0;
     level.currentPlane = level.planes[level.planeIndex];
     level.turrets = [...level.groups.turret.objects];
     level.loopedSounds = [];
+    level.shallowerPlanes = shallowerPlanes;
+
+    (shallowerPlanes[index] || []).forEach(({
+      x, y, angle, textureKey, damage, perfect,
+    }) => {
+      const plane = planeGroup.group.create(x, y, textureKey);
+      plane.angle = angle;
+      plane.damage = damage;
+      plane.winning = true;
+      plane.perfect = perfect;
+      this.addWinLabel(plane);
+      level.planes.push(plane);
+    });
 
     const goal = level.mapLookups.$[0];
     const [, goalY] = this.positionToScreenCoordinate(goal.x, goal.y);
@@ -93,7 +112,7 @@ export default class PlayScene extends SuperScene {
       plane.currentGun = 0;
       plane.thrust = 0;
       plane.roll = 0;
-      plane.damage = 0;
+      plane.damage = plane.damage || 0;
       plane.planeCollideDebounce = {};
       plane.gunCooldowns = [...cooldowns];
       plane.theta = Angle2Theta(plane.angle + 180);
@@ -122,7 +141,7 @@ export default class PlayScene extends SuperScene {
         const depth = Math.max(0, plane.y - goalDepth) ** prop('goal.depthExponent');
         plane.score += prop('goal.depthMultiplier') * depth;
 
-        if (plane.flawless) {
+        if (plane.perfect) {
           plane.score *= 3;
         }
       }
@@ -439,14 +458,11 @@ export default class PlayScene extends SuperScene {
       return;
     }
 
-    let color = 'rgb(0, 255, 0)';
-
     if (plane.damage === 0) {
-      color = 'rgb(255, 0, 255)';
       if (!this.level.hideContract) {
-        this.speak(plane, 'PERFECT!', {color, fontSize: 24});
+        this.speak(plane, 'PERFECT!', {color: 'rgb(255, 0, 255)', fontSize: 24});
       }
-      plane.flawless = true;
+      plane.perfect = true;
     }
 
     plane.winning = true;
@@ -458,7 +474,12 @@ export default class PlayScene extends SuperScene {
       }, 500);
     }
 
+    this.addWinLabel(plane);
+  }
+
+  addWinLabel(plane) {
     if (!this.level.hideContract) {
+      const color = plane.perfect ? 'rgb(255, 0, 255)' : 'rgb(0, 255, 0)';
       plane.winningLabel = this.text(plane.x, plane.y, '$0', {color, fontSize: 14});
     }
   }
@@ -703,12 +724,14 @@ export default class PlayScene extends SuperScene {
       return;
     }
 
-    this.playSound('select');
-
     const planes = level.availablePlanes;
     planes.forEach((plane) => {
       plane.alpha = 0.25;
     });
+
+    if (planes.length > 1) {
+      this.playSound('select');
+    }
 
     level.planeIndex = (level.planeIndex + planes.length + dIdx) % planes.length;
     const plane = level.selectingPlane = planes[level.planeIndex];
@@ -902,19 +925,38 @@ export default class PlayScene extends SuperScene {
     this.cameraFollow(level.selectingPlane);
   }
 
-  goToLevel(index) {
-    const count = this.levelIds().length;
-    const levelIndex = (index + count) % count;
+  goToLevel(index, increased = false) {
+    const ids = this.levelIds();
+    const count = ids.length;
+    let levelIndex = (index + count) % count;
+    let depth = this.level.depth || 0;
+    if (levelIndex === 0 && increased) {
+      depth += 1;
+    }
+    if (levelIndex === 1 && depth) {
+      while (ids[levelIndex].startsWith('tutorial')) {
+        levelIndex += 1;
+      }
+    }
+
+    const shallowerPlanes = [...this.level.shallowerPlanes];
+    shallowerPlanes[this.level.levelIndex] = [...this.level.planes.filter(({winning}) => winning).map(({
+      x, y, angle, texture, damage, perfect,
+    }) => ({
+      x, y, angle, textureKey: texture.key, damage, perfect,
+    }))];
 
     this.replaceWithSelf(true, {
       levelIndex,
+      depth,
+      shallowerPlanes,
     }, {
       name: 'effects.winTransition',
     });
   }
 
   skipLevel(d) {
-    this.goToLevel(this.level.levelIndex + d);
+    this.goToLevel(this.level.levelIndex + d, d > 0);
   }
 
   completeLevel() {

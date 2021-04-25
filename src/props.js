@@ -118,7 +118,7 @@ export const propSpecs = {
   'plane.thrustGravity': [100, 0, 10000],
   'plane.power': [500, 0, 10000],
   'plane.maxVelocity': [500, 0, 10000],
-  'plane.squish': [60, 1, 100],
+  'plane.squish': [10, 1, 100],
   'plane.wallBounce': [10000, 0, 100000],
   'plane.planeBounce': [10000, 0, 100000],
   'plane.bounceTime': [100, 0, 10000],
@@ -181,18 +181,27 @@ propSpecs['scene.camera.hasBounds'][0] = false;
 
 export const tileDefinitions = {
   '.': null, // background
+  // used when vault is narrower to ensure vault is fully combined
   '%': {
-    image: 'wall',
+    image: 'vault',
     group: 'wall',
     isStatic: true,
-    combine: true,
+    combine: '%',
+    preferCombineVertical: true,
+  },
+  // used when vault is same size to get a smooth wall
+  '=': {
+    image: 'vault',
+    group: 'wall',
+    isStatic: true,
+    combine: '#',
     preferCombineVertical: true,
   },
   '#': {
     image: 'wall',
     group: 'wall',
     isStatic: true,
-    combine: true,
+    combine: '#',
     preferCombineVertical: true,
   },
   $: {

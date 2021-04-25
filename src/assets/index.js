@@ -22,10 +22,12 @@ import shoot2 from './audio/shoot2.wav';
 import shoot3 from './audio/shoot3.wav';
 import thrust from './audio/thrust.wav';
 import turret from './sprites/turret.png';
+import vault from './sprites/vault.png';
 import victory from './audio/victory.mp3';
 import wall from './images/wall.png';
 
 export const imageAssets = {
+  vault,
   wall,
 };
 
