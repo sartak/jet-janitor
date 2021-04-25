@@ -13,13 +13,9 @@ export const commands = {
     execute: 'playerShoot',
   },
 
-  nextGun: {
-    input: ['keyboard.X', 'gamepad.R1'],
-    execute: 'nextGun',
-  },
-  prevGun: {
-    input: ['keyboard.C', 'gamepad.L1'],
-    execute: 'prevGun',
+  afterburner: {
+    input: ['keyboard.X', 'gamepad.X'],
+    execute: 'afterburn',
   },
 
   up: {
@@ -158,10 +154,7 @@ export const propSpecs = {
 
   'gun.0.speed': [500, 0, 10000],
   'gun.0.cooldown': [500, 0, 10000],
-  'gun.1.speed': [500, 0, 10000],
-  'gun.1.cooldown': [500, 0, 10000],
-  'gun.2.speed': [500, 0, 10000],
-  'gun.2.cooldown': [500, 0, 10000],
+  'gun.0.recoil': [300, 0, 10000],
 
   'goal.wait': [1000, 0, 10000],
   'goal.planeIndex': [0, null, 'level.planeIndex'],
@@ -176,6 +169,11 @@ export const propSpecs = {
     yoyo: true,
     loop: -1,
   }],
+
+  'effects.winTransition.transition': [{
+    animation: 'fadeInOut',
+    duration: 1000,
+  }],
 };
 
 propSpecs['scene.camera.lerp'][0] = 0.1;
@@ -183,11 +181,19 @@ propSpecs['scene.camera.hasBounds'][0] = false;
 
 export const tileDefinitions = {
   '.': null, // background
+  '%': {
+    image: 'wall',
+    group: 'wall',
+    isStatic: true,
+    combine: true,
+    preferCombineVertical: true,
+  },
   '#': {
     image: 'wall',
     group: 'wall',
     isStatic: true,
     combine: true,
+    preferCombineVertical: true,
   },
   $: {
     group: 'pregoal',

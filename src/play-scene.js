@@ -4,7 +4,7 @@ import analytics from './scaffolding/lib/analytics';
 
 // DEEPER AND DEEPER
 
-const GUNS = 3;
+const GUNS = 1;
 
 const Angle2Theta = (angle) => angle / 180 * Math.PI;
 const Theta2Angle = (theta) => theta / Math.PI * 180;
@@ -211,32 +211,30 @@ export default class PlayScene extends SuperScene {
     return hud;
   }
 
-  setGun(idx) {
+  afterburn(plane = this.level.currentPlane) {
     const {level, time} = this;
-    const {currentPlane} = level;
+    const {noAfterburner} = level;
     const {now} = time;
 
-    if (this.level.noAfterburner) {
+    if (noAfterburner) {
       return;
     }
 
-    if (!currentPlane) {
+    if (!plane) {
       return;
     }
 
-    if (currentPlane.winning) {
+    if (plane.winning) {
       return;
     }
 
-    if (currentPlane.afterburnerCooldown > now) {
+    if (plane.afterburnerCooldown > now) {
       return;
     }
 
-    currentPlane.afterburnerCooldown = now + prop('afterburner.cooldown');
-    currentPlane.currentGun = idx;
-
-    const [x, y] = this.boosterPosition(currentPlane, prop('booster.shockOffset'));
-    this.shockwave(x + currentPlane.booster.width / 2, y + currentPlane.booster.height / 2);
+    plane.afterburnerCooldown = now + prop('afterburner.cooldown');
+    const [x, y] = this.boosterPosition(plane, prop('booster.shockOffset'));
+    this.shockwave(x + plane.booster.width / 2, y + plane.booster.height / 2);
   }
 
   playerShoot() {
@@ -247,30 +245,12 @@ export default class PlayScene extends SuperScene {
     this.shoot();
   }
 
-  nextGun() {
-    const {level} = this;
-    const {currentPlane} = level;
-    if (!currentPlane) {
-      return;
-    }
-    this.setGun((currentPlane.currentGun + 1) % GUNS);
-  }
-
-  prevGun() {
-    const {level} = this;
-    const {currentPlane} = level;
-    if (!currentPlane) {
-      return;
-    }
-    this.setGun(((currentPlane.currentGun + GUNS) - 1) % GUNS);
-  }
-
   blastOff() {
     const {level} = this;
     const {currentPlane} = level;
 
     this.level.blastoff = true;
-    this.setGun(currentPlane.currentGun);
+    this.afterburn();
     this._cameraFollow = null;
   }
 
@@ -317,18 +297,20 @@ export default class PlayScene extends SuperScene {
       return;
     }
 
+    const t = theta === null ? object.theta + Math.PI / 2 : theta;
     let cooldown = prop(`gun.${currentGun}.cooldown`);
     if (isTurret) {
       object.alpha = 1;
       cooldown *= this.randBetween('turret.cooldown', 1, 3);
+    } else {
+      const recoil = prop(`gun.${currentGun}.recoil`);
+      object.setVelocityX(object.body.velocity.x + recoil * -Math.cos(t));
+      object.setVelocityY(object.body.velocity.y + recoil * -Math.sin(t));
     }
+
     gunCooldowns[currentGun] = now + cooldown;
 
-    if (theta === null) {
-      theta = object.theta + Math.PI / 2;
-    }
-
-    this.createBullet(object, object.currentGun, theta + this.randBetween('bulletVariance', -variance / 2, variance / 2));
+    this.createBullet(object, object.currentGun, t + this.randBetween('bulletVariance', -variance / 2, variance / 2));
   }
 
   selectedPlane() {
@@ -842,6 +824,8 @@ export default class PlayScene extends SuperScene {
 
     this.replaceWithSelf(true, {
       levelIndex,
+    }, {
+      name: 'effects.winTransition',
     });
   }
 
