@@ -91,7 +91,7 @@ export default class PlayScene extends SuperScene {
       const plane = planeGroup.group.create(x, y, textureKey);
       plane.angle = angle;
       plane.damage = damage;
-      plane.winning = true;
+      plane.winning = plane.inert = true;
       plane.perfect = perfect;
       this.addWinLabel(plane);
       level.planes.push(plane);
@@ -503,6 +503,14 @@ export default class PlayScene extends SuperScene {
 
     level.planes = level.planes.filter((p) => p !== plane);
 
+    if (plane.booster.sound) {
+      try {
+        plane.booster.sound.destroy();
+      } catch (e) {
+      }
+      plane.booster.sound = null;
+    }
+
     plane.booster.destroy();
     plane.destroy();
     this.playSound('explode');
@@ -800,7 +808,12 @@ export default class PlayScene extends SuperScene {
       return;
     }
 
-    const theta = Math.atan2(currentPlane.y - turret.y, currentPlane.x - turret.x);
+    const dy = currentPlane.y - turret.y;
+    const dx = currentPlane.x - turret.x;
+    if (Math.sqrt(dx ** 2 + dy ** 2) > 400) {
+      return;
+    }
+    const theta = Math.atan2(dy, dx);
     this.shoot(turret, theta, Math.PI / 8, true);
   }
 
@@ -864,30 +877,6 @@ export default class PlayScene extends SuperScene {
       plane.done = now;
       plane.setVelocityX(0);
       plane.setVelocityY(0);
-
-      if (!plane.winningSoundTweening) {
-        const sound = plane.winningSound;
-        plane.winningSoundTweening = true;
-        if (sound) {
-          this.tweenPercent(
-            1000,
-            (factor) => {
-              try {
-                sound.requestedVolume = 1 - factor;
-                sound.setVolume(sound.requestedVolume * this.game.volume * prop('scene.soundVolume'));
-              } catch (e) {
-              }
-            },
-            () => {
-              plane.winningSound = null;
-              try {
-                sound.destroy();
-              } catch (e) {
-              }
-            },
-          );
-        }
-      }
     }
 
     if (now - plane.done > prop('goal.wait')) {

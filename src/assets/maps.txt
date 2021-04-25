@@ -20,7 +20,7 @@
   "autopilot": true,
   "music": "intro",
   "scripts": [
-    {"execute": ["tutorial", "war is over.        again.                                                                                we must put these weapons of mass destruction into deep cold storage.              again.                                                                         deeper and deeper.", { "noOut": true }, 1800]},
+    {"execute": ["tutorial", "war is over.        again.                                                                                we must put these weapons of mass destruction into deep cold storage.          ... again.                                                                         deeper and deeper.", { "noOut": true }, 1800]},
     {"delay": 14000, "execute": ["blastOff"]},
     {"delay": 2000, "execute": ["skipLevel", 1]}
   ]
@@ -121,13 +121,13 @@
 #..................#
 #..................#
 #..................#
-#........A.........#
-#..........A....#..#
+#..................#
+#......A........#..#
 #...............#..#
-#......@....#####..#
+#..#...@..A.#####..#
 #..#...............#
 #..#...............#
-#..#...............#
+#..................#
 #..................#
 ########%$$%########
 ........%11%........
