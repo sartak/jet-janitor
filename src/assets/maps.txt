@@ -4,6 +4,7 @@
   "id": "tutorialStory",
   "hideContract": true,
   "autopilot": true,
+  "music": "intro",
   "scripts": [
     {"execute": ["tutorial", "war is over.                                                                                              we must put these weapons of mass destruction into deep cold storage.                                                                                              deeper and deeper.", { "noOut": true }, 1800]},
     {"delay": 14000, "execute": ["blastOff"]},
@@ -53,6 +54,7 @@
   "noAfterburner": true,
   "noShooting": true,
   "noDamage": true,
+  "music": "main",
   "scripts": [
     {"execute": ["tutorial", "hold UP to thrust", { "noOut": true, "tweenProp": "effects.hint.attract" }]}
   ]
@@ -95,6 +97,7 @@
   "hideContract": true,
   "noAfterburner": true,
   "noShooting": true,
+  "music": "main",
   "noDamage": true,
   "scripts": [
     {"execute": ["tutorial", "press LEFT and RIGHT to steer", { "noOut": true, "tweenProp": "effects.hint.attract" }]}
@@ -138,6 +141,7 @@
   "id": "tutorialContract",
   "noAfterburner": true,
   "noShooting": true,
+  "music": "main",
   "scripts": [
     {"execute": ["tutorial", "damage is coming outta YOUR paycheck", { "noOut": true, "tweenProp": "effects.hint.attract" }]}
   ]
@@ -187,7 +191,8 @@
 ...................%%%%%%%....................
 
 {
-  "id": "test"
+  "id": "test",
+  "music": "main"
 }
 
 ###################
@@ -242,6 +247,7 @@
 
 {
   "id": "finale",
+  "music": "finale",
   "scripts": [
     {"execute": ["tutorial", "the last weapon is you. finish the job.", { "noOut": true, "tweenProp": "effects.hint.attract" }]}
   ]

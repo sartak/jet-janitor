@@ -62,6 +62,10 @@ export default class PlayScene extends SuperScene {
     this.changePlanes();
   }
 
+  musicName() {
+    return this.level && this.level.music;
+  }
+
   createLevel(index) {
     const id = this.levelIds()[index];
     const level = super.createLevel(id);
@@ -72,6 +76,7 @@ export default class PlayScene extends SuperScene {
     level.planeIndex = 0;
     level.currentPlane = level.planes[level.planeIndex];
     level.turrets = [...level.groups.turret.objects];
+    level.loopedSounds = [];
 
     const goal = level.mapLookups.$[0];
     const [, goalY] = this.positionToScreenCoordinate(goal.x, goal.y);
@@ -232,6 +237,8 @@ export default class PlayScene extends SuperScene {
       return;
     }
 
+    this.playSound('afterburner');
+
     plane.afterburnerCooldown = now + prop('afterburner.cooldown');
     const [x, y] = this.boosterPosition(plane, prop('booster.shockOffset'));
     this.shockwave(x + plane.booster.width / 2, y + plane.booster.height / 2);
@@ -306,6 +313,7 @@ export default class PlayScene extends SuperScene {
       const recoil = prop(`gun.${currentGun}.recoil`);
       object.setVelocityX(object.body.velocity.x + recoil * -Math.cos(t));
       object.setVelocityY(object.body.velocity.y + recoil * -Math.sin(t));
+      this.playSound('shoot', 3);
     }
 
     gunCooldowns[currentGun] = now + cooldown;
@@ -317,6 +325,7 @@ export default class PlayScene extends SuperScene {
     const {level} = this;
     const {planeIndex, availablePlanes} = level;
 
+    this.playSound('thrust');
     level.selectingPlane = null;
     level.changingPlanes = false;
     level.currentPlane = availablePlanes[planeIndex];
@@ -413,13 +422,16 @@ export default class PlayScene extends SuperScene {
   }
 
   overlapPlaneMine(plane, mine) {
-    this.damagePlane(plane, 1000);
+    if (!this.damagePlane(plane, 1000)) {
+      this.playSound('explode');
+    }
     mine.destroy();
   }
 
   overlapMineBullet(mine, bullet) {
     mine.destroy();
     bullet.destroy();
+    this.playSound('explode');
   }
 
   overlapPlaneGoal(plane, goal) {
@@ -438,6 +450,13 @@ export default class PlayScene extends SuperScene {
     }
 
     plane.winning = true;
+
+    if (plane === this.level.currentPlane) {
+      this.playSound('goal', 0, 0.75);
+      this.timer(() => {
+        plane.winningSound = this.playSound('score', 0, 0.75);
+      }, 500);
+    }
 
     if (!this.level.hideContract) {
       plane.winningLabel = this.text(plane.x, plane.y, '$0', {color, fontSize: 14});
@@ -465,6 +484,7 @@ export default class PlayScene extends SuperScene {
 
     plane.booster.destroy();
     plane.destroy();
+    this.playSound('explode');
 
     if (isCurrent) {
       level.currentPlane = null;
@@ -476,11 +496,12 @@ export default class PlayScene extends SuperScene {
 
   damagePlane(plane, amount, shakeFactor = 1) {
     if (this.level.noDamage) {
-      return;
+      return false;
     }
 
     if (plane.winning) {
-      return;
+      this.playSound('hitPlane', 3);
+      return false;
     }
 
     plane.damage += amount;
@@ -490,6 +511,10 @@ export default class PlayScene extends SuperScene {
 
     if (plane.damage >= 1000) {
       this.destroyPlane(plane);
+      return true;
+    } else {
+      this.playSound('hitPlane', 3);
+      return false;
     }
   }
 
@@ -511,6 +536,7 @@ export default class PlayScene extends SuperScene {
     turret.gunCooldowns[turret.currentGun] += 1000;
     turret.alpha = 0.5;
 
+    this.playSound('hitTurret');
     bullet.destroy();
   }
 
@@ -677,6 +703,8 @@ export default class PlayScene extends SuperScene {
       return;
     }
 
+    this.playSound('select');
+
     const planes = level.availablePlanes;
     planes.forEach((plane) => {
       plane.alpha = 0.25;
@@ -772,8 +800,40 @@ export default class PlayScene extends SuperScene {
     const {now} = time;
     const {currentPlane} = level;
 
+    if (level.selectingPlane && !level.autopilot) {
+      plane.setVelocityX(0);
+      plane.setVelocityY(0);
+    }
+
     if (!plane.winning || plane.inert) {
       return;
+    }
+
+    const soundThreshold = 10;
+    if (!plane.done && Math.abs(plane.body.velocity.x) < soundThreshold && Math.abs(plane.body.velocity.y) < soundThreshold) {
+      if (!plane.winningSoundTweening) {
+        const sound = plane.winningSound;
+        plane.winningSoundTweening = true;
+        if (sound) {
+          this.tweenPercent(
+            1000,
+            (factor) => {
+              try {
+                sound.requestedVolume = 1 - factor;
+                sound.setVolume(sound.requestedVolume * this.game.volume * prop('scene.soundVolume'));
+              } catch (e) {
+              }
+            },
+            () => {
+              plane.winningSound = null;
+              try {
+                sound.destroy();
+              } catch (e) {
+              }
+            },
+          );
+        }
+      }
     }
 
     const threshold = 0.1;
@@ -781,6 +841,30 @@ export default class PlayScene extends SuperScene {
       plane.done = now;
       plane.setVelocityX(0);
       plane.setVelocityY(0);
+
+      if (!plane.winningSoundTweening) {
+        const sound = plane.winningSound;
+        plane.winningSoundTweening = true;
+        if (sound) {
+          this.tweenPercent(
+            1000,
+            (factor) => {
+              try {
+                sound.requestedVolume = 1 - factor;
+                sound.setVolume(sound.requestedVolume * this.game.volume * prop('scene.soundVolume'));
+              } catch (e) {
+              }
+            },
+            () => {
+              plane.winningSound = null;
+              try {
+                sound.destroy();
+              } catch (e) {
+              }
+            },
+          );
+        }
+      }
     }
 
     if (now - plane.done > prop('goal.wait')) {
@@ -929,6 +1013,7 @@ export default class PlayScene extends SuperScene {
     if (this.level.autopilot) {
       ay = 0;
     }
+
     plane.body.setAccelerationX(ax);
     plane.body.setAccelerationY(ay);
   }
@@ -950,10 +1035,24 @@ export default class PlayScene extends SuperScene {
       booster.alpha = 0;
       booster.bonus = 0;
       booster.heldTime = 0;
+      if (booster.sound) {
+        try {
+          booster.sound.destroy();
+        } catch (e) {
+        }
+
+        booster.sound = null;
+      }
     } else {
       booster.alpha = 1;
       booster.heldTime = (booster.heldTime || 0) + dt;
+
+      if (!booster.sound && !this.level.autopilot) {
+        booster.sound = this.playSound('thrust', 0, 0.4, true);
+        this.level.loopedSounds.push(booster.sound);
+      }
     }
+
 
     let distFactor = (Math.sin(booster.heldTime / prop('booster.bounce')) + 1) / 2;
     distFactor += Math.max(1, plane.thrust) - 1;
@@ -1003,6 +1102,15 @@ export default class PlayScene extends SuperScene {
 
     x += this.camera.scrollX;
     y += this.camera.scrollY;
+  }
+
+  willTransitionTo(newScene, transition) {
+    this.level.loopedSounds.forEach((sound) => {
+      try {
+        sound.destroy();
+      } catch (e) {
+      }
+    });
   }
 
   _hotReloadCurrentLevel() {

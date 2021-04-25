@@ -2441,7 +2441,7 @@ export default class SuperScene extends Phaser.Scene {
     }
   }
 
-  playSound(baseName, variants, volume = 1.0) {
+  playSound(baseName, variants, volume = 1.0, loop = false) {
     // preflight etc
     if (!this.scene.isVisible() || this.game._replayPreflight) {
       return;
@@ -2470,11 +2470,13 @@ export default class SuperScene extends Phaser.Scene {
       sound.requestedVolume = volume;
       sound.setVolume(volume * this.game.volume * prop('scene.soundVolume'));
       sound.timeScale = 1;
-      sound.play();
+      sound.play('', { loop });
     } catch (e) {
       // eslint-disable-next-line no-console
       console.warn(`Could not play sound ${name}: ${e}`);
     }
+
+    return sound;
   }
 
   changeVolume(newVolume) {
