@@ -3,6 +3,8 @@
 import afterburner from './audio/afterburner.wav';
 import booster from './sprites/booster.png';
 import bullet0 from './sprites/bullet0.png';
+import cloud from './sprites/cloud.png';
+import cloud2 from './sprites/cloud2.png';
 import enemyA from './sprites/enemyA.png';
 import explode from './audio/explode.wav';
 import finale from './audio/finale.mp3';
@@ -27,8 +29,11 @@ import turret from './sprites/turret.png';
 import vault from './sprites/vault.png';
 import victory from './audio/victory.mp3';
 import wall from './images/wall.png';
+import wreck from './sprites/wreck.png';
 
 export const imageAssets = {
+  cloud,
+  cloud2,
   signature,
   title,
   vault,
@@ -42,6 +47,7 @@ export const spriteAssets = {
   mine,
   player,
   turret,
+  wreck,
 };
 
 export const musicAssets = {

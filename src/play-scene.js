@@ -27,7 +27,7 @@ export default class PlayScene extends SuperScene {
   }
 
   levelIds() {
-    return ['tutorialStory', 'tutorialThrust', 'tutorialSteer', 'tutorialContract', 'test', 'finale'];
+    return ['tutorialStory', 'tutorialThrust', 'tutorialSteer', 'tutorialContract', 'tutorialAfterburner', 'walls', 'obstacles', 'ambush', 'tunnel', 'finale'];
   }
 
   initialSaveState() {
@@ -53,7 +53,7 @@ export default class PlayScene extends SuperScene {
 
   create(config) {
     super.create(config);
-    this.level = this.createLevel(config.levelIndex || 0, config.depth || 0, config.shallowerPlanes || []);
+    this.level = this.createLevel(config.levelIndex || 0, config.depth || 0, config.shallowerPlanes || [], config.shallowerWrecks || []);
     this.hud = this.createHud();
 
     this.setupPhysics();
@@ -65,7 +65,7 @@ export default class PlayScene extends SuperScene {
     return this.level && this.level.music;
   }
 
-  createLevel(index, depth, shallowerPlanes) {
+  createLevel(index, depth, shallowerPlanes, shallowerWrecks) {
     let id = this.levelIds()[index];
     if (index === 0 && depth) {
       id += '2';
@@ -74,6 +74,7 @@ export default class PlayScene extends SuperScene {
     const level = super.createLevel(id);
 
     const planeGroup = level.groups.plane;
+    const wreckGroup = level.groups.wreck;
     level.levelIndex = index;
     level.depth = depth;
     level.bullets = this.physics.add.group();
@@ -82,7 +83,9 @@ export default class PlayScene extends SuperScene {
     level.currentPlane = level.planes[level.planeIndex];
     level.turrets = [...level.groups.turret.objects];
     level.loopedSounds = [];
+    level.wrecks = [];
     level.shallowerPlanes = shallowerPlanes;
+    level.shallowerWrecks = shallowerWrecks;
 
     (shallowerPlanes[index] || []).forEach(({
       x, y, angle, textureKey, damage, perfect,
@@ -94,6 +97,15 @@ export default class PlayScene extends SuperScene {
       plane.perfect = perfect;
       this.addWinLabel(plane);
       level.planes.push(plane);
+    });
+
+    (shallowerWrecks[index] || []).forEach(({
+      x, y, angle, textureKey, winning,
+    }) => {
+      const wreck = wreckGroup.group.create(x, y, textureKey);
+      wreck.angle = angle;
+      wreck.winning = winning;
+      level.wrecks.push(wreck);
     });
 
     const goal = level.mapLookups.$[0];
@@ -123,7 +135,15 @@ export default class PlayScene extends SuperScene {
       turret.gunCooldowns = cooldowns.map((c) => this.randBetween('cooldown', 1000, 2000));
     });
 
+    level.wrecks.forEach((wreck) => {
+      this.setupWreck(wreck, true);
+    });
+
     return level;
+  }
+
+  setupWreck(wreck, shallower) {
+    wreck.planeCollideDebounce = {};
   }
 
   calculateScore() {
@@ -131,9 +151,11 @@ export default class PlayScene extends SuperScene {
     const {goalDepth} = level;
     const {now} = time;
 
+    const planeHealth = prop('plane.health');
+    const healthMultiplier = prop('plane.healthMultiplier');
     let score = 0;
     level.planes.forEach((plane) => {
-      plane.score = Math.max(0, 1000 - plane.damage);
+      plane.score = Math.max(0, healthMultiplier * (planeHealth - plane.damage));
 
       // add score for goal depth
       if (plane.winning) {
@@ -267,7 +289,7 @@ export default class PlayScene extends SuperScene {
       return;
     }
 
-    this.shoot();
+    this.shoot(this.level.currentPlane, null, Math.PI / 8, false);
   }
 
   blastOff() {
@@ -300,7 +322,7 @@ export default class PlayScene extends SuperScene {
     return bullet;
   }
 
-  shoot(object = this.level.currentPlane, theta = null, variance = 0, isTurret = false) {
+  shoot(object, theta, variance, isTurret) {
     const {level, time} = this;
     const {now} = time;
 
@@ -327,16 +349,19 @@ export default class PlayScene extends SuperScene {
     if (isTurret) {
       object.alpha = 1;
       cooldown *= this.randBetween('turret.cooldown', 1, 3);
+      this.createBullet(object, object.currentGun, t + this.randBetween('bulletVariance', -variance / 2, variance / 2));
     } else {
       const recoil = prop(`gun.${currentGun}.recoil`);
       object.setVelocityX(object.body.velocity.x + recoil * -Math.cos(t));
       object.setVelocityY(object.body.velocity.y + recoil * -Math.sin(t));
       this.playSound('shoot', 3);
+
+      [-1, 0, 1].forEach((dTheta) => {
+        this.createBullet(object, object.currentGun, t + dTheta * variance);
+      });
     }
 
     gunCooldowns[currentGun] = now + cooldown;
-
-    this.createBullet(object, object.currentGun, t + this.randBetween('bulletVariance', -variance / 2, variance / 2));
   }
 
   selectedPlane() {
@@ -422,7 +447,7 @@ export default class PlayScene extends SuperScene {
     const {level, physics} = this;
     const {groups, bullets} = level;
     const {
-      wall, goal, plane, pregoal, turret, mine,
+      wall, goal, plane, pregoal, turret, mine, wreck,
     } = groups;
 
     physics.add.collider(plane.group, wall.group, null, (...args) => this.overlapPlaneWall(...args));
@@ -430,20 +455,32 @@ export default class PlayScene extends SuperScene {
     physics.add.collider(plane.group, turret.group, null, (...args) => this.overlapPlaneTurret(...args));
     physics.add.overlap(plane.group, bullets, null, (...args) => this.overlapPlaneBullet(...args));
     physics.add.overlap(plane.group, goal.group, null, (...args) => this.overlapPlaneGoal(...args));
-    physics.add.overlap(plane.group, goal.group, null, (...args) => this.overlapPlaneGoal(...args));
     physics.add.overlap(plane.group, pregoal.group, null, (...args) => this.overlapPlanePregoal(...args));
     physics.add.overlap(turret.group, bullets, null, (...args) => this.overlapTurretBullet(...args));
     physics.add.overlap(bullets, goal.group, null, (...args) => this.overlapBulletGoal(...args));
 
     physics.add.overlap(plane.group, mine.group, null, (...args) => this.overlapPlaneMine(...args));
     physics.add.overlap(mine.group, bullets, null, (...args) => this.overlapMineBullet(...args));
+
+    physics.add.collider(wreck.group, wreck.group);
+    physics.add.collider(wreck.group, wall.group);
+    physics.add.collider(plane.group, wreck.group, null, (...args) => this.overlapPlaneWreck(...args));
+    physics.add.collider(mine.group, wreck.group, null, (...args) => this.overlapMineWreck(...args));
+    physics.add.collider(wreck.group, turret.group);
+    physics.add.overlap(wreck.group, goal.group, null, (...args) => this.overlapWreckGoal(...args));
   }
 
   overlapPlaneMine(plane, mine) {
-    if (!this.damagePlane(plane, 1000)) {
+    if (!this.damagePlane(plane, prop('plane.health'))) {
       this.playSound('explode');
     }
     mine.destroy();
+  }
+
+  overlapMineWreck(mine, wreck) {
+    this.playSound('explode');
+    mine.destroy();
+    wreck.destroy();
   }
 
   overlapMineBullet(mine, bullet) {
@@ -474,6 +511,14 @@ export default class PlayScene extends SuperScene {
     }
 
     this.addWinLabel(plane);
+  }
+
+  overlapWreckGoal(wreck, goal) {
+    if (wreck.winning) {
+      return;
+    }
+
+    wreck.winning = true;
   }
 
   addWinLabel(plane) {
@@ -554,6 +599,7 @@ export default class PlayScene extends SuperScene {
 
   destroyPlane(plane) {
     const {level} = this;
+    const wreckGroup = level.groups.wreck;
 
     const isCurrent = plane === level.currentPlane;
 
@@ -567,6 +613,12 @@ export default class PlayScene extends SuperScene {
       plane.booster.sound = null;
     }
 
+    const {x, y, angle} = plane;
+    const wreck = wreckGroup.group.create(x, y, 'wreck');
+    wreck.angle = angle;
+    level.wrecks.push(wreck);
+    this.setupWreck(wreck, false);
+
     plane.booster.destroy();
     plane.destroy();
     this.playSound('explode');
@@ -579,7 +631,7 @@ export default class PlayScene extends SuperScene {
     }
   }
 
-  damagePlane(plane, amount, shakeFactor = 1) {
+  damagePlane(plane, amount) {
     if (this.level.noDamage) {
       return false;
     }
@@ -591,10 +643,10 @@ export default class PlayScene extends SuperScene {
 
     plane.damage += amount;
     if (plane === this.level.currentPlane) {
-      this.trauma(amount / 50 * shakeFactor);
+      this.trauma(plane.damage / prop('plane.health'));
     }
 
-    if (plane.damage >= 1000) {
+    if (plane.damage >= prop('plane.health')) {
       this.destroyPlane(plane);
       return true;
     } else {
@@ -608,7 +660,7 @@ export default class PlayScene extends SuperScene {
       return;
     }
 
-    const damage = this.randBetween('damage', 10, 20);
+    const damage = prop('plane.bulletDamage') * this.randBetween('damage', 1, 2);
     this.damagePlane(plane, damage);
     bullet.destroy();
   }
@@ -618,7 +670,7 @@ export default class PlayScene extends SuperScene {
       return;
     }
 
-    turret.gunCooldowns[turret.currentGun] += 1000;
+    turret.gunCooldowns[turret.currentGun] += 5000;
     turret.alpha = 0.5;
 
     this.playSound('hitTurret');
@@ -633,9 +685,9 @@ export default class PlayScene extends SuperScene {
     }
 
     const debounce = 100;
-    const damage = this.randBetween('damage', 2, 5);
+    const damage = prop('plane.collideDamage') * this.randBetween('damage', 1, 2);
     if (now > (plane.planeCollideDebounce.wall || 0)) {
-      this.damagePlane(plane, damage, 0.1);
+      this.damagePlane(plane, damage);
       plane.planeCollideDebounce.wall = now + debounce;
     } else {
       // debounce
@@ -647,7 +699,7 @@ export default class PlayScene extends SuperScene {
     const {now} = this.time;
 
     const debounce = 200;
-    const damage = this.randBetween('damage', 10, 20);
+    const damage = prop('plane.collideDamage') * this.randBetween('damage', 1, 2);
     if (now > (plane1.planeCollideDebounce[plane2] || 0) || now > (plane2.planeCollideDebounce[plane1] || 0)) {
       this.damagePlane(plane1, damage);
       this.damagePlane(plane2, damage);
@@ -659,19 +711,48 @@ export default class PlayScene extends SuperScene {
 
     const angle = Math.atan2(plane2.y - plane1.y, plane2.x - plane1.x);
     const amount = 100;
-    plane2.setVelocityX(plane2.body.velocity.x + amount * Math.cos(angle));
-    plane2.setVelocityY(plane2.body.velocity.y + amount * Math.sin(angle));
-    plane1.setVelocityX(plane1.body.velocity.x + amount * -Math.cos(angle));
-    plane1.setVelocityY(plane1.body.velocity.y + amount * -Math.sin(angle));
+    if (plane2.body) {
+      plane2.setVelocityX(plane2.body.velocity.x + amount * Math.cos(angle));
+      plane2.setVelocityY(plane2.body.velocity.y + amount * Math.sin(angle));
+    }
+    if (plane1.body) {
+      plane1.setVelocityX(plane1.body.velocity.x + amount * -Math.cos(angle));
+      plane1.setVelocityY(plane1.body.velocity.y + amount * -Math.sin(angle));
+    }
+  }
+
+  overlapPlaneWreck(plane, wreck) {
+    const {now} = this.time;
+
+    const debounce = 200;
+    const damage = prop('plane.collideDamage') * this.randBetween('damage', 1, 2);
+    if (now > (plane.planeCollideDebounce[wreck] || 0) || now > (wreck.planeCollideDebounce[plane] || 0)) {
+      this.damagePlane(plane, damage);
+      plane.planeCollideDebounce[wreck] = now + debounce;
+      wreck.planeCollideDebounce[plane] = now + debounce;
+    } else {
+      // debounce
+    }
+
+    const angle = Math.atan2(wreck.y - plane.y, wreck.x - plane.x);
+    const amount = 100;
+    if (wreck.body) {
+      wreck.setVelocityX(wreck.body.velocity.x + amount * Math.cos(angle));
+      wreck.setVelocityY(wreck.body.velocity.y + amount * Math.sin(angle));
+    }
+    if (plane.body) {
+      plane.setVelocityX(plane.body.velocity.x + amount * -Math.cos(angle));
+      plane.setVelocityY(plane.body.velocity.y + amount * -Math.sin(angle));
+    }
   }
 
   overlapPlaneTurret(plane, turret) {
     const {now} = this.time;
 
     const debounce = 200;
-    const damage = this.randBetween('damage', 2, 5);
+    const damage = prop('plane.collideDamage') * this.randBetween('damage', 1, 2);
     if (now > (plane.planeCollideDebounce[turret] || 0)) {
-      this.damagePlane(plane, damage, 0.1);
+      this.damagePlane(plane, damage);
       plane.planeCollideDebounce[turret] = now + debounce;
     } else {
       // debounce
@@ -679,8 +760,10 @@ export default class PlayScene extends SuperScene {
 
     const angle = Math.atan2(turret.y - plane.y, turret.x - plane.x);
     const amount = 100;
-    plane.setVelocityX(plane.body.velocity.x + amount * -Math.cos(angle));
-    plane.setVelocityY(plane.body.velocity.y + amount * -Math.sin(angle));
+    if (plane.body) {
+      plane.setVelocityX(plane.body.velocity.x + amount * -Math.cos(angle));
+      plane.setVelocityY(plane.body.velocity.y + amount * -Math.sin(angle));
+    }
   }
 
   setupAnimations() {
@@ -809,7 +892,7 @@ export default class PlayScene extends SuperScene {
     const {level} = this;
     const {
       complete, changingPlanes, planes, currentPlane, turrets,
-      autopilot,
+      autopilot, wrecks,
     } = level;
 
     this.timeScale = 1;
@@ -851,6 +934,10 @@ export default class PlayScene extends SuperScene {
         this.drag(plane, dt);
         this.suction(plane, dt);
         this.jelly(plane, dt);
+      });
+
+      wrecks.forEach((wreck) => {
+        this.drag(wreck, dt);
       });
 
       turrets.forEach((turret) => {
@@ -903,9 +990,9 @@ export default class PlayScene extends SuperScene {
 
     const soundThreshold = 10;
     if (!plane.done && Math.abs(plane.body.velocity.x) < soundThreshold && Math.abs(plane.body.velocity.y) < soundThreshold) {
-      if (!plane.winningSoundTweening) {
+      if (plane.winningSound && !plane.winningSound.isWinTweening) {
         const sound = plane.winningSound;
-        plane.winningSoundTweening = true;
+        sound.isWinTweening = true;
         if (sound) {
           this.tweenPercent(
             1000,
@@ -950,7 +1037,31 @@ export default class PlayScene extends SuperScene {
       return;
     }
 
-    // this.physics.world.pause();
+    level.planes.forEach((plane) => {
+      if (plane.winningSound && !plane.winningSound.isWinTweening) {
+        const sound = plane.winningSound;
+        sound.isWinTweening = true;
+        if (sound) {
+          this.tweenPercent(
+            1000,
+            (factor) => {
+              try {
+                sound.requestedVolume = 1 - factor;
+                sound.setVolume(sound.requestedVolume * this.game.volume * prop('scene.soundVolume'));
+              } catch (e) {
+              }
+            },
+            () => {
+              plane.winningSound = null;
+              try {
+                sound.destroy();
+              } catch (e) {
+              }
+            },
+          );
+        }
+      }
+    });
 
     level.availablePlanes = level.planes.filter((p) => !p.winning).sort((a, b) => a.x - b.x);
 
@@ -991,10 +1102,18 @@ export default class PlayScene extends SuperScene {
       x, y, angle, textureKey: texture.key, damage, perfect,
     }))];
 
+    const shallowerWrecks = [...this.level.shallowerWrecks];
+    shallowerWrecks[this.level.levelIndex] = [...this.level.wrecks.map(({
+      x, y, angle, texture, winning,
+    }) => ({
+      x, y, angle, textureKey: texture.key, winning,
+    }))];
+
     this.replaceWithSelf(true, {
       levelIndex,
       depth,
       shallowerPlanes,
+      shallowerWrecks,
     }, {
       name: 'effects.winTransition',
     });
@@ -1015,20 +1134,20 @@ export default class PlayScene extends SuperScene {
     this.skipLevel(1);
   }
 
-  drag(plane, dt) {
-    if (plane.winning) {
-      const drag = Math.min(0.98, prop('physics.goalDrag') + plane.afterburnerThrust / 10);
-      plane.setVelocityX(plane.body.velocity.x * drag);
-      plane.setVelocityY(plane.body.velocity.y * drag);
+  drag(object, dt) {
+    if (object.winning) {
+      const drag = Math.min(0.98, prop('physics.goalDrag') + (object.afterburnerThrust || 0) / 10);
+      object.setVelocityX(object.body.velocity.x * drag);
+      object.setVelocityY(object.body.velocity.y * drag);
       return;
     }
 
-    if (Math.abs(plane.thrust) < 0.01) {
-      plane.setVelocityX(plane.body.velocity.x * prop('physics.drag'));
+    if (!('thrust' in object) || Math.abs(object.thrust) < 0.01) {
+      object.setVelocityX(object.body.velocity.x * prop('physics.drag'));
     }
 
-    if (plane !== this.level.currentPlane) {
-      plane.setVelocityY(plane.body.velocity.y * prop('physics.drag'));
+    if (object !== this.level.currentPlane) {
+      object.setVelocityY(object.body.velocity.y * prop('physics.drag'));
     }
   }
 
@@ -1172,7 +1291,7 @@ export default class PlayScene extends SuperScene {
   }
 
   cameraColor() {
-    return 0x000000;
+    return 0x999999;
   }
 
   launchTimeSight() {
@@ -1182,6 +1301,40 @@ export default class PlayScene extends SuperScene {
   renderTimeSightFrameInto(scene, phantomDt, time, dt, isLast) {
     const objects = [];
     return objects;
+  }
+
+  positionBackground() {
+    const {
+      level, game, camera,
+    } = this;
+    const {background, width: levelWidth, height: levelHeight} = level;
+    const {width: gameWidth, height: gameHeight} = game.config;
+    const {width: backgroundWidth, height: backgroundHeight} = background;
+    const {scrollX, scrollY} = camera;
+
+    const xFactor = levelWidth > 2000 ? 0.1 : levelWidth > 1000 ? 0.2 : 0.4;
+    const yFactor = levelHeight > 2000 ? 0.1 : levelHeight > 1000 ? 0.2 : 0.4;
+    const factor = Math.min(xFactor, yFactor);
+    background.setScrollFactor(0);
+    background.x = backgroundWidth / 2 - gameWidth / 2 - scrollX * factor;
+    background.y = backgroundHeight / 2 - gameHeight / 2 - scrollY * factor;
+  }
+
+  positionBackground2() {
+    const {
+      level, game, camera,
+    } = this;
+    const {background2, width: levelWidth, height: levelHeight} = level;
+    const {width: gameWidth, height: gameHeight} = game.config;
+    const {width: backgroundWidth, height: backgroundHeight} = background2;
+    const {scrollX, scrollY} = camera;
+
+    const xFactor = levelWidth > 2000 ? 0.05 : levelWidth > 1000 ? 0.1 : 0.2;
+    const yFactor = levelHeight > 2000 ? 0.05 : levelHeight > 1000 ? 0.1 : 0.2;
+    const factor = Math.min(xFactor, yFactor);
+    background2.setScrollFactor(0);
+    background2.x = backgroundWidth / 2 - gameWidth / 2 - scrollX * factor;
+    background2.y = backgroundHeight / 2 - gameHeight / 2 - scrollY * factor;
   }
 
   debugHandlePointerdown(event) {

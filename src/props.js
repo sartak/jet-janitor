@@ -122,6 +122,10 @@ export const propSpecs = {
   'plane.wallBounce': [10000, 0, 100000],
   'plane.planeBounce': [10000, 0, 100000],
   'plane.bounceTime': [100, 0, 10000],
+  'plane.health': [100, 0, 10000],
+  'plane.healthMultiplier': [2.0, 0, 10],
+  'plane.bulletDamage': [5, 0, 1000],
+  'plane.collideDamage': [2, 0, 1000],
 
   'currentPlane.x': [0, null, 'level.currentPlane.x'],
   'currentPlane.y': [0, null, 'level.currentPlane.y'],
@@ -280,6 +284,10 @@ export const tileDefinitions = {
     group: 'goal',
     isStatic: true,
     combine: true,
+  },
+  '&': {
+    image: 'wreck',
+    group: 'wreck',
   },
   '@': {
     image: 'player',

@@ -390,6 +390,11 @@ export default class SuperScene extends Phaser.Scene {
       level.background.setPosition(level.background.width * 0.5, level.background.height * 0.5);
     }
 
+    if (level.background2) {
+      level.background2 = this.add.sprite(0, 0, level.background2);
+      level.background2.setPosition(level.background2.width * 0.5, level.background2.height * 0.5);
+    }
+
     if (level.underground) {
       this.createUnderground(level.underground);
     }
@@ -934,6 +939,7 @@ export default class SuperScene extends Phaser.Scene {
     }
 
     this.positionBackground();
+    this.positionBackground2();
     this.positionUnderground();
   }
 
@@ -968,6 +974,40 @@ export default class SuperScene extends Phaser.Scene {
     } else {
       const yFactor = scrollY / yDivisor;
       background.y = yBorder + backgroundHeight * 0.5 + yFactor * (levelHeight - backgroundHeight);
+    }
+  }
+
+  positionBackground2() {
+    const {
+      level, game, xBorder, yBorder, camera,
+    } = this;
+    if (!level) {
+      return;
+    }
+
+    const {background2, width: levelWidth, height: levelHeight} = level;
+    if (!background2) {
+      return;
+    }
+
+    const {width: gameWidth, height: gameHeight} = game.config;
+    const {width: backgroundWidth, height: backgroundHeight} = background2;
+    const {scrollX, scrollY} = camera;
+
+    const xDivisor = levelWidth - gameWidth + xBorder * 2;
+    if (xDivisor === 0) {
+      background2.x = backgroundWidth * 0.5;
+    } else {
+      const xFactor = scrollX / xDivisor;
+      background2.x = xBorder + backgroundWidth * 0.5 + xFactor * (levelWidth - backgroundWidth);
+    }
+
+    const yDivisor = levelHeight - gameHeight + yBorder * 2;
+    if (yDivisor === 0) {
+      background2.y = backgroundHeight * 0.5;
+    } else {
+      const yFactor = scrollY / yDivisor;
+      background2.y = yBorder + backgroundHeight * 0.5 + yFactor * (levelHeight - backgroundHeight);
     }
   }
 
