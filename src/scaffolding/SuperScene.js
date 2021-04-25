@@ -497,11 +497,15 @@ export default class SuperScene extends Phaser.Scene {
     let yc;
 
     if (xc && !Number.isInteger(xc)) {
-      const lookups = this.level.mapLookups[xc];
-      xc = yc = lookups.map((t) => t.object).find((o) => o);
-      if (xc === undefined) {
-        xc = lookups[0].xCoord;
-        yc = lookups[0].yCoord;
+      if (typeof xc === 'object') {
+        yc = xc;
+      } else {
+        const lookups = this.level.mapLookups[xc];
+        xc = yc = lookups.map((t) => t.object).find((o) => o);
+        if (xc === undefined) {
+          xc = lookups[0].xCoord;
+          yc = lookups[0].yCoord;
+        }
       }
     } else {
       yc = args.shift();
@@ -524,7 +528,7 @@ export default class SuperScene extends Phaser.Scene {
     lines.forEach((line, i) => {
       const {
         duration, inTime, outTime, text, extraDelay,
-        dx, dy, ox, oy, noOut, follow,
+        dx, dy, ox, oy, noOut, follow, tweenProp,
       } = {
         inTime: 200,
         outTime: 200,
@@ -534,6 +538,7 @@ export default class SuperScene extends Phaser.Scene {
         dx: null,
         ox: 0,
         oy: 0,
+        tweenProp: null,
         noOut: false,
         follow: true,
         ...options,
@@ -567,7 +572,7 @@ export default class SuperScene extends Phaser.Scene {
         xl += ox;
         yl += oy;
 
-        const label = this.text(xl, yl, text);
+        const label = this.text(xl, yl, text, options);
         const halfWidth = label.width / 2;
         const halfHeight = label.height / 2;
         label.x -= halfWidth;
@@ -621,6 +626,12 @@ export default class SuperScene extends Phaser.Scene {
             'Cubic.easeOut',
           );
         }, inTime);
+
+        if (tweenProp) {
+          this.timer(() => {
+            this.tween(tweenProp, label);
+          }, inTime);
+        }
 
         if (noOut) {
           return;

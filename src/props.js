@@ -10,7 +10,7 @@ const particleImages = [
 export const commands = {
   shoot: {
     input: ['keyboard.Z', 'gamepad.A'],
-    execute: 'shoot',
+    execute: 'playerShoot',
   },
 
   nextGun: {
@@ -43,6 +43,20 @@ export const commands = {
     joystick: true,
   },
 
+  next: {
+    input: ['keyboard.N'],
+    execute: (scene) => scene.skipLevel(1),
+    debug: true,
+    unignorable: true,
+    unreplayable: true,
+  },
+  prev: {
+    input: ['keyboard.P'],
+    execute: (scene) => scene.skipLevel(-1),
+    debug: true,
+    unignorable: true,
+    unreplayable: true,
+  },
   restart: {
     input: ['keyboard.R'],
     execute: (scene) => scene.replaceWithSelf(),
@@ -92,6 +106,7 @@ export const shaderPipelines = {
 export const propSpecs = {
   ...builtinPropSpecs(commands, shaderCoordFragments, shaderColorFragments),
 
+
   'physics.goalDrag': [0.95, 0, 1],
   'physics.drag': [0.98, 0, 1],
   'physics.timeThrust': [5, 0, 10],
@@ -110,7 +125,7 @@ export const propSpecs = {
   'plane.squish': [60, 1, 100],
   'plane.wallBounce': [10000, 0, 100000],
   'plane.planeBounce': [10000, 0, 100000],
-  'plane.bounceTime': [1000, 0, 10000],
+  'plane.bounceTime': [100, 0, 10000],
 
   'currentPlane.x': [0, null, 'level.currentPlane.x'],
   'currentPlane.y': [0, null, 'level.currentPlane.y'],
@@ -127,7 +142,7 @@ export const propSpecs = {
   'booster.x': [0, null, 'level.currentPlane.booster.x'],
   'booster.y': [0, null, 'level.currentPlane.booster.y'],
   'booster.angle': [0, null, 'level.currentPlane.booster.angle'],
-  'booster.bounce': [15, 0, 500],
+  'booster.bounce': [300, 0, 500],
   'booster.distance': [10, 0, 1000],
   'booster.bonus': [0.1, null, 'level.currentPlane.booster.bonus'],
   'booster.shockOffset': [32, 0, 100],
@@ -151,8 +166,20 @@ export const propSpecs = {
   'goal.wait': [1000, 0, 10000],
   'goal.planeIndex': [0, null, 'level.planeIndex'],
   'goal.planeDebounce': [false, null, 'level.debouncePlaneSelect'],
+  'goal.depthExponent': [1.3, 0, 10],
   'goal.depthMultiplier': [10, 0, 100],
+
+  'effects.hint.attract.tween': [{
+    duration: 2000,
+    dy: 8,
+    ease: 'Quad.easeInOut',
+    yoyo: true,
+    loop: -1,
+  }],
 };
+
+propSpecs['scene.camera.lerp'][0] = 0.1;
+propSpecs['scene.camera.hasBounds'][0] = false;
 
 export const tileDefinitions = {
   '.': null, // background
@@ -222,19 +249,21 @@ export const tileDefinitions = {
     combine: true,
   },
   '@': {
-    plane: true,
     image: 'player',
     group: 'plane',
   },
   A: {
-    plane: true,
     image: 'enemyA',
     group: 'plane',
   },
   T: {
-    plane: true,
     image: 'turret',
     group: 'turret',
+    isStatic: true,
+  },
+  M: {
+    image: 'mine',
+    group: 'mine',
     isStatic: true,
   },
 };
