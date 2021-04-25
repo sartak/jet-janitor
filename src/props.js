@@ -174,6 +174,24 @@ export const propSpecs = {
     animation: 'fadeInOut',
     duration: 1000,
   }],
+
+  'effects.chuck.titleIn.tween': [{
+    alpha: 1,
+    dy: 50,
+    ease: 'Cubic.easeOut',
+    duration: 500,
+  }],
+
+  'effects.chuck.signatureIn.tween': [{
+    duration: 2000,
+  }],
+
+  'effects.chuck.nameIn.tween': [{
+    alpha: 1,
+    dx: -500,
+    ease: 'Cubic.easeOut',
+    duration: 1000,
+  }],
 };
 
 propSpecs['scene.camera.lerp'][0] = 0.1;

@@ -2470,7 +2470,7 @@ export default class SuperScene extends Phaser.Scene {
       sound.requestedVolume = volume;
       sound.setVolume(volume * this.game.volume * prop('scene.soundVolume'));
       sound.timeScale = 1;
-      sound.play('', { loop });
+      sound.play('', {loop});
     } catch (e) {
       // eslint-disable-next-line no-console
       console.warn(`Could not play sound ${name}: ${e}`);

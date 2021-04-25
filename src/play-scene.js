@@ -53,7 +53,6 @@ export default class PlayScene extends SuperScene {
 
   create(config) {
     super.create(config);
-
     this.level = this.createLevel(config.levelIndex || 0, config.depth || 0, config.shallowerPlanes || []);
     this.hud = this.createHud();
 
@@ -494,6 +493,63 @@ export default class PlayScene extends SuperScene {
     }
 
     plane.suction = true;
+  }
+
+  hideTutorialText() {
+    let tutorialText;
+    this.children.list.forEach((child) => {
+      if (child.type === 'Text' && child.text.match(/war is over/)) {
+        tutorialText = child;
+      }
+    });
+
+    if (tutorialText) {
+      tutorialText.alpha = 0;
+    }
+  }
+
+  finishedChuck() {
+    this.timer(() => {
+      this.skipLevel(1);
+    }, 1000);
+  }
+
+  bringInChuck(debug = false) {
+    const width = 800;
+    const height = 600;
+
+    const chuck = this.add.image(width / 2, height / 2 - 50, 'title');
+    chuck.alpha = 0;
+    chuck.setScrollFactor(0);
+    this.tween('effects.chuck.titleIn', chuck);
+
+    this.timer(() => {
+      this.hideTutorialText();
+
+      const signature = this.add.image(width / 2, height / 2, 'signature');
+      signature.setCrop(0, 0, 0, height);
+      signature.setScrollFactor(0);
+      this.tween('effects.chuck.signatureIn', signature);
+      this.tweenPercent(
+        prop('effects.chuck.signatureIn.duration'),
+        (factor) => {
+          signature.setCrop(0, 0, width * factor, height);
+        },
+      );
+
+      this.timer(() => {
+        const name = this.text(900, 200, 'Jet Janitor', {
+          fontSize: 64, color: 'rgb(0, 0, 255)',
+        });
+        name.alpha = 0;
+        name.setScrollFactor(0);
+        this.tween('effects.chuck.nameIn', name);
+
+        this.timer(() => {
+          this.finishedChuck();
+        }, debug ? 10000 : prop('effects.chuck.nameIn.duration'));
+      }, debug ? 1000 : prop('effects.chuck.signatureIn.duration'));
+    }, debug ? 1000 : prop('effects.chuck.titleIn.duration'));
   }
 
   destroyPlane(plane) {

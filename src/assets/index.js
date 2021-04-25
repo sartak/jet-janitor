@@ -20,13 +20,17 @@ import select from './audio/select.wav';
 import shoot1 from './audio/shoot1.wav';
 import shoot2 from './audio/shoot2.wav';
 import shoot3 from './audio/shoot3.wav';
+import signature from './sprites/signature.png';
 import thrust from './audio/thrust.wav';
+import title from './sprites/title.png';
 import turret from './sprites/turret.png';
 import vault from './sprites/vault.png';
 import victory from './audio/victory.mp3';
 import wall from './images/wall.png';
 
 export const imageAssets = {
+  signature,
+  title,
   vault,
   wall,
 };
