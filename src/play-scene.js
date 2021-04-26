@@ -649,6 +649,7 @@ export default class PlayScene extends SuperScene {
 
     if (tutorialText) {
       tutorialText.alpha = 0;
+      tutorialText.setDepth(0);
     }
   }
 
@@ -667,6 +668,7 @@ export default class PlayScene extends SuperScene {
     const chuck = this.add.image(width / 2, height / 2 - 50, 'title');
     chuck.alpha = 0;
     chuck.setScrollFactor(0);
+    chuck.setDepth(100000);
     this.tween('effects.chuck.titleIn', chuck);
 
     this.timer(() => {
@@ -675,6 +677,7 @@ export default class PlayScene extends SuperScene {
       const signature = this.add.image(width / 2, height / 2, 'signature');
       signature.setCrop(0, 0, 0, height);
       signature.setScrollFactor(0);
+      signature.setDepth(100004);
       this.tween('effects.chuck.signatureIn', signature);
       this.tweenPercent(
         prop('effects.chuck.signatureIn.duration'),
@@ -689,6 +692,7 @@ export default class PlayScene extends SuperScene {
         });
         name.alpha = 0;
         name.setScrollFactor(0);
+        name.setDepth(100002);
         this.tween('effects.chuck.nameIn', name);
 
         this.timer(() => {
