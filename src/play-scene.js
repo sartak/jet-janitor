@@ -320,29 +320,27 @@ export default class PlayScene extends SuperScene {
     return hud;
   }
 
-  afterburn(plane = this.level.currentPlane) {
+  afterburn(plane = this.level.currentPlane, force = false) {
     const {level, time} = this;
     const {noAfterburner} = level;
     const {now} = time;
-
-    if (noAfterburner) {
-      return;
-    }
-
-    if (level.autopilot) {
-      return;
-    }
 
     if (!plane) {
       return;
     }
 
-    if (plane.winning) {
-      return;
-    }
+    if (!force) {
+      if (noAfterburner) {
+        return;
+      }
 
-    if (plane.afterburnerCooldown > now) {
-      return;
+      if (plane.winning) {
+        return;
+      }
+
+      if (plane.afterburnerCooldown > now) {
+        return;
+      }
     }
 
     this.playSound('afterburner');
@@ -367,7 +365,7 @@ export default class PlayScene extends SuperScene {
     const {currentPlane} = level;
 
     this.level.blastoff = true;
-    this.afterburn();
+    this.afterburn(currentPlane, true);
     this._cameraFollow = null;
   }
 
