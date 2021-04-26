@@ -1,4 +1,4 @@
-<!--[![NAME](https://github.com/sartak/jumpcoins/blob/master/src/assets/ld-cover.png?raw=true)](https://ld48.sartak.org/)-->
+[![Chuck Yeager's Jet Janitor](https://github.com/sartak/jet-janitor/blob/master/src/assets/cover.png?raw=true)](https://jet-janitor.sartak.org/)-->
 
 # Play Live
 
