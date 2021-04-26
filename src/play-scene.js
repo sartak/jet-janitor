@@ -653,7 +653,7 @@ export default class PlayScene extends SuperScene {
   finishedChuck() {
     this.timer(() => {
       this.skipLevel(1);
-    }, 1000);
+    }, 4000);
   }
 
   bringInChuck(debug = false) {
@@ -682,7 +682,7 @@ export default class PlayScene extends SuperScene {
       );
 
       this.timer(() => {
-        const name = this.text(900, 200, 'Jet Janitor', {
+        const name = this.text(900, 300, 'Jet Janitor', {
           fontSize: 64, color: 'rgb(0, 0, 255)',
         });
         name.alpha = 0;
