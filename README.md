@@ -1,4 +1,5 @@
 [![Chuck Yeager's Jet Janitor](https://github.com/sartak/jet-janitor/blob/master/src/assets/cover.png?raw=true)](https://jet-janitor.sartak.org/)-->
+[![Chuck Yeager's Jet Janitor gameplay demo](https://github.com/sartak/jet-janitor/blob/master/src/assets/gameplay.gif?raw=true)](https://jet-janitor.sartak.org/)-->
 
 # Play Live
 
