@@ -7,7 +7,6 @@
   "id": "tutorialStory",
   "hideContract": true,
   "autopilot": true,
-  "noAfterburner": true,
   "music": "intro",
   "background2": "cloud2",
   "background": "cloud",
@@ -25,7 +24,6 @@
   "hideContract": true,
   "autopilot": true,
   "music": "intro",
-  "noAfterburner": true,
   "background2": "cloud2",
   "background": "cloud",
   "scripts": [

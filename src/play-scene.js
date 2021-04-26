@@ -329,6 +329,10 @@ export default class PlayScene extends SuperScene {
       return;
     }
 
+    if (level.autopilot) {
+      return;
+    }
+
     if (!plane) {
       return;
     }
