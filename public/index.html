@@ -21,6 +21,16 @@
     -->
     <title>%GAME_NAME%</title>
 
+    <script>
+      var ua = navigator.userAgent.toLowerCase();
+      if (ua.indexOf('safari') != -1) {
+        if (ua.indexOf('chrome') > -1) {
+        } else {
+          alert("Sounds don't work consistently in Safari; for best results please use Chrome!") // Safari
+        }
+      }
+    </script>
+
     <!-- Global site tag (gtag.js) - Google Analytics -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=%ANALYTICS_ID%"></script>
     <script>
