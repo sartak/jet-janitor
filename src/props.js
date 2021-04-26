@@ -4,7 +4,7 @@ import {
 } from './scaffolding/lib/props';
 
 const particleImages = [
-  '',
+  'effectImageCircle',
 ];
 
 export const commands = {
@@ -118,7 +118,7 @@ export const propSpecs = {
   'plane.thrustGravity': [100, 0, 10000],
   'plane.power': [500, 0, 10000],
   'plane.maxVelocity': [500, 0, 10000],
-  'plane.squish': [10, 1, 100],
+  'plane.squish': [30, 1, 100],
   'plane.wallBounce': [10000, 0, 100000],
   'plane.planeBounce': [10000, 0, 100000],
   'plane.bounceTime': [100, 0, 10000],
@@ -138,6 +138,7 @@ export const propSpecs = {
   'currentPlane.accelerationX': [0.1, null, 'level.currentPlane.body.acceleration.x'],
   'currentPlane.accelerationY': [0.1, null, 'level.currentPlane.body.acceleration.y'],
   'currentPlane.afterburnerThrust': [0.1, null, 'level.currentPlane.afterburnerThrust'],
+  'currentPlane.destroy': [(scene) => scene.destroyPlane(scene.level.currentPlane)],
 
   'booster.x': [0, null, 'level.currentPlane.booster.x'],
   'booster.y': [0, null, 'level.currentPlane.booster.y'],
@@ -196,6 +197,21 @@ export const propSpecs = {
     ease: 'Cubic.easeOut',
     duration: 1000,
   }],
+
+  'effects.explode.particles': [{
+    image: 'effectImageCircle',
+    quantity: 50,
+  }],
+
+  'effects.pregoal.particles': [{
+    image: 'effectImageCircle',
+    preemit: true,
+    scaleX: 0.01,
+    scaleY: 0.01,
+    quantity: 1,
+    frequency: 1,
+    lifespan: 10000,
+  }],
 };
 
 propSpecs['scene.camera.lerp'][0] = 0.1;
@@ -204,27 +220,102 @@ propSpecs['scene.camera.hasBounds'][0] = false;
 export const tileDefinitions = {
   '.': null, // background
   // used when vault is narrower to ensure vault is fully combined
-  '%': {
+  '<': {
     image: 'vault',
     group: 'wall',
     isStatic: true,
-    combine: '%',
+    combine: '<',
     preferCombineVertical: true,
   },
+  '>': {
+    image: 'vaultR',
+    group: 'wall',
+    isStatic: true,
+    combine: '<',
+    preferCombineVertical: true,
+  },
+  '^': {
+    image: 'vaultB',
+    group: 'wall',
+    isStatic: true,
+    combine: '<',
+    preferCombineVertical: true,
+  },
+
   // used when vault is same size to get a smooth wall
-  '=': {
+  '[': {
     image: 'vault',
     group: 'wall',
     isStatic: true,
     combine: '#',
     preferCombineVertical: true,
   },
-  '#': {
+  ']': {
+    image: 'vaultR',
+    group: 'wall',
+    isStatic: true,
+    combine: '#',
+    preferCombineVertical: true,
+  },
+  _: {
+    image: 'vaultB',
+    group: 'wall',
+    isStatic: true,
+    combine: '#',
+    preferCombineVertical: true,
+  },
+
+  '-': {
     image: 'wall',
     group: 'wall',
     isStatic: true,
     combine: '#',
+    preferCombineVertical: false,
+  },
+  '|': {
+    image: 'wallVertical',
+    group: 'wall',
+    isStatic: true,
+    combine: '#',
     preferCombineVertical: true,
+  },
+  t: {
+    image: 'wallTop',
+    group: 'wall',
+    isStatic: true,
+    combine: '#',
+    preferCombineVertical: true,
+  },
+  b: {
+    image: 'wallBottom',
+    group: 'wall',
+    isStatic: true,
+    combine: '#',
+    preferCombineVertical: true,
+  },
+  l: {
+    image: 'wallTL',
+    group: 'wall',
+    isStatic: true,
+    combine: '#',
+  },
+  r: {
+    image: 'wallTR',
+    group: 'wall',
+    isStatic: true,
+    combine: '#',
+  },
+  c: {
+    image: 'wallBL',
+    group: 'wall',
+    isStatic: true,
+    combine: '#',
+  },
+  d: {
+    image: 'wallBR',
+    group: 'wall',
+    isStatic: true,
+    combine: '#',
   },
   $: {
     group: 'pregoal',
@@ -232,55 +323,55 @@ export const tileDefinitions = {
     combine: true,
   },
   1: {
-    image: 'goal',
+    image: 'goalTile',
     group: 'goal',
     isStatic: true,
     combine: true,
   },
   2: {
-    image: 'goal',
+    image: 'goalTile',
     group: 'goal',
     isStatic: true,
     combine: true,
   },
   3: {
-    image: 'goal',
+    image: 'goalTile',
     group: 'goal',
     isStatic: true,
     combine: true,
   },
   4: {
-    image: 'goal',
+    image: 'goalTile',
     group: 'goal',
     isStatic: true,
     combine: true,
   },
   5: {
-    image: 'goal',
+    image: 'goalTile',
     group: 'goal',
     isStatic: true,
     combine: true,
   },
   6: {
-    image: 'goal',
+    image: 'goalTile',
     group: 'goal',
     isStatic: true,
     combine: true,
   },
   7: {
-    image: 'goal',
+    image: 'goalTile',
     group: 'goal',
     isStatic: true,
     combine: true,
   },
   8: {
-    image: 'goal',
+    image: 'goalTile',
     group: 'goal',
     isStatic: true,
     combine: true,
   },
   9: {
-    image: 'goal',
+    image: 'goalTile',
     group: 'goal',
     isStatic: true,
     combine: true,
@@ -297,9 +388,46 @@ export const tileDefinitions = {
     image: 'enemyA',
     group: 'plane',
   },
+  B: {
+    image: 'planeB',
+    group: 'plane',
+  },
+  C: {
+    image: 'planeC',
+    group: 'plane',
+  },
+  D: {
+    image: 'planeD',
+    group: 'plane',
+  },
+  E: {
+    image: 'planeE',
+    group: 'plane',
+  },
+  F: {
+    image: 'planeF',
+    group: 'plane',
+  },
   T: {
     image: 'turret',
     group: 'turret',
+    isStatic: true,
+  },
+  V: {
+    image: 'turretV',
+    group: 'turret',
+    isStatic: true,
+  },
+  L: {
+    image: 'turretV',
+    group: 'turret',
+    rotateLeft: true,
+    isStatic: true,
+  },
+  R: {
+    image: 'turretV',
+    group: 'turret',
+    rotateRight: true,
     isStatic: true,
   },
   M: {

@@ -385,14 +385,14 @@ export default class SuperScene extends Phaser.Scene {
       index,
     };
 
-    if (level.background) {
-      level.background = this.add.sprite(0, 0, level.background);
-      level.background.setPosition(level.background.width * 0.5, level.background.height * 0.5);
-    }
-
     if (level.background2) {
       level.background2 = this.add.sprite(0, 0, level.background2);
       level.background2.setPosition(level.background2.width * 0.5, level.background2.height * 0.5);
+    }
+
+    if (level.background) {
+      level.background = this.add.sprite(0, 0, level.background);
+      level.background.setPosition(level.background.width * 0.5, level.background.height * 0.5);
     }
 
     if (level.underground) {
@@ -858,7 +858,6 @@ export default class SuperScene extends Phaser.Scene {
         chainTiles.forEach((tile) => {
           const image = this.add.image(tile.xCoord + halfWidth, tile.yCoord + halfHeight, tile.image);
           image.tile = tile;
-          image.alpha = 0.5;
           tile.image = image;
           tile.object = object;
         });

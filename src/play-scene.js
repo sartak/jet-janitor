@@ -1,3 +1,4 @@
+import Phaser from 'phaser';
 import SuperScene from './scaffolding/SuperScene';
 import prop from './props';
 import analytics from './scaffolding/lib/analytics';
@@ -8,6 +9,17 @@ const GUNS = 1;
 
 const Angle2Theta = (angle) => angle / 180 * Math.PI;
 const Theta2Angle = (theta) => theta / Math.PI * 180;
+
+const whiteColor = {
+  r: 255,
+  g: 255,
+  b: 255,
+};
+const redColor = {
+  r: 255,
+  g: 0,
+  b: 0,
+};
 
 export default class PlayScene extends SuperScene {
   constructor() {
@@ -97,6 +109,7 @@ export default class PlayScene extends SuperScene {
       plane.perfect = perfect;
       this.addWinLabel(plane);
       level.planes.push(plane);
+      plane.anims.play(`${plane.texture.key}Alt`);
     });
 
     (shallowerWrecks[index] || []).forEach(({
@@ -127,18 +140,60 @@ export default class PlayScene extends SuperScene {
       plane.planeCollideDebounce = {};
       plane.gunCooldowns = [...cooldowns];
       plane.theta = Angle2Theta(plane.angle + 180);
+      plane.setDepth(10);
     });
 
     level.turrets.forEach((turret) => {
+      // ??
       turret.afterburnerCooldown = -100000;
+
       turret.currentGun = 0;
       turret.gunCooldowns = cooldowns.map((c) => this.randBetween('cooldown', 1000, 2000));
+
+      const tile = turret.tiles[0];
+      if (tile.rotateRight) {
+        turret.angle -= 90;
+      }
+      if (tile.rotateLeft) {
+        turret.angle += 90;
+      }
+      turret.setDepth(8);
     });
 
     level.wrecks.forEach((wreck) => {
       this.setupWreck(wreck, true);
+      wreck.setDepth(7);
     });
 
+    level.groups.goal.objects.forEach(({tiles}) => {
+      const [t] = tiles;
+      const amount = 0.5 + parseInt(t.glyph, 10) / 20;
+      tiles.forEach((tile) => {
+        tile.image.alpha = amount;
+        tile.image.setDepth(100);
+      });
+    });
+
+    const {tileWidth, tileHeight} = this;
+
+    level.groups.pregoal.objects.forEach(({tiles}) => {
+      tiles.forEach((tile) => {
+        const [x, y] = this.positionToScreenCoordinate(tile.x, tile.y);
+        this.particleSystem(
+          'effects.pregoal',
+          {
+            speedY: {min: -30, max: -15},
+            x: {min: x, max: x + tileWidth},
+            y: y + tileHeight,
+            accelerationY: 10,
+            tint: [0x4397F7],
+            onAdd: (particles, emitter) => {
+              particles.setDepth(50);
+            },
+          },
+        );
+      });
+    });
     return level;
   }
 
@@ -213,6 +268,12 @@ export default class PlayScene extends SuperScene {
 
     if (change === true) {
       scoreUp.alpha = 1;
+
+      const {now} = this.time;
+      if (!level.nextClinkTime || now > level.nextClinkTime) {
+        level.nextClinkTime = now + this.randBetween('clink', 250, 500);
+        this.playSound('clink');
+      }
     } else if (change === false) {
       scoreDown.alpha = 1;
     } else {
@@ -246,12 +307,15 @@ export default class PlayScene extends SuperScene {
 
     const scoreSteady = hud.scoreSteady = this.text(scoreX, scoreY, scoreText, {color: 'rgb(255, 255, 255)'});
     scoreSteady.setScrollFactor(0);
+    scoreSteady.setDepth(1000);
 
     const scoreUp = hud.scoreUp = this.text(scoreX, scoreY, scoreText, {color: 'rgb(0, 255, 0)'});
     scoreUp.setScrollFactor(0);
+    scoreUp.setDepth(1000);
 
     const scoreDown = hud.scoreDown = this.text(scoreX, scoreY, scoreText, {color: 'rgb(255, 0, 0)'});
     scoreDown.setScrollFactor(0);
+    scoreDown.setDepth(1000);
 
     return hud;
   }
@@ -282,6 +346,8 @@ export default class PlayScene extends SuperScene {
     plane.afterburnerCooldown = now + prop('afterburner.cooldown');
     const [x, y] = this.boosterPosition(plane, prop('booster.shockOffset'));
     this.shockwave(x + plane.booster.width / 2, y + plane.booster.height / 2);
+    plane.booster.anims.play('afterburnerBoosterFire', true);
+    plane.booster.isAfterburner = true;
   }
 
   playerShoot() {
@@ -315,6 +381,8 @@ export default class PlayScene extends SuperScene {
 
     bullet.setVelocity(vx, vy);
 
+    bullet.anims.play('bullet0');
+
     this.timer(() => {
       bullet.destroy();
     }, 10000);
@@ -347,9 +415,13 @@ export default class PlayScene extends SuperScene {
     const t = theta === null ? object.theta + Math.PI / 2 : theta;
     let cooldown = prop(`gun.${currentGun}.cooldown`);
     if (isTurret) {
-      object.alpha = 1;
+      object.setTint(0xFFFFFF);
       cooldown *= this.randBetween('turret.cooldown', 1, 3);
-      this.createBullet(object, object.currentGun, t + this.randBetween('bulletVariance', -variance / 2, variance / 2));
+      this.tweenSustain(500, 100, 500, (factor) => {
+        object.setScale(1 - (factor / 5), 1 + (factor / 5));
+      }, () => {
+        this.createBullet(object, object.currentGun, t + this.randBetween('bulletVariance', -variance / 2, variance / 2));
+      }, () => {}, () => {}, 0, 'Cubic.easeIn', 'Cubic.easeOut');
     } else {
       const recoil = prop(`gun.${currentGun}.recoil`);
       object.setVelocityX(object.body.velocity.x + recoil * -Math.cos(t));
@@ -373,9 +445,7 @@ export default class PlayScene extends SuperScene {
     level.changingPlanes = false;
     level.currentPlane = availablePlanes[planeIndex];
 
-    level.planes.forEach((plane) => {
-      plane.alpha = 1;
-    });
+    level.currentPlane.anims.play(`${level.currentPlane.texture.key}Current`);
 
     this.cameraFollow(level.currentPlane);
   }
@@ -474,16 +544,45 @@ export default class PlayScene extends SuperScene {
     if (!this.damagePlane(plane, prop('plane.health'))) {
       this.playSound('explode');
     }
+    this.explode(mine.x, mine.y);
     mine.destroy();
+  }
+
+  explode(x, y) {
+    this.shockwave(x, y);
+    this.particleSystem(
+      'effects.explode',
+      {
+        x,
+        y,
+        scaleX: {min: 0.01, max: 0.5},
+        scaleY: {min: 0.01, max: 0.5},
+        blendMode: 'SCREEN',
+        alpha: {start: 1, end: 0},
+        speed: {min: 50, max: 200},
+        accelerationY: {min: 100, max: 500},
+        tint: [0xB13333, 0xD97217, 0xD7CB18],
+        quantity: 10,
+        lifespan: 1000,
+        onAdd: (particles, emitter) => {
+          this.timer(() => {
+            emitter.stop();
+          }, 100);
+        },
+      },
+    );
   }
 
   overlapMineWreck(mine, wreck) {
     this.playSound('explode');
+    this.explode(mine.x, mine.y);
     mine.destroy();
+    this.explode(wreck.x, wreck.y);
     wreck.destroy();
   }
 
   overlapMineBullet(mine, bullet) {
+    this.explode(mine.x, mine.y);
     mine.destroy();
     bullet.destroy();
     this.playSound('explode');
@@ -505,9 +604,6 @@ export default class PlayScene extends SuperScene {
 
     if (plane === this.level.currentPlane) {
       this.playSound('goal', 0, 0.75);
-      this.timer(() => {
-        plane.winningSound = this.playSound('score', 0, 0.75);
-      }, 500);
     }
 
     this.addWinLabel(plane);
@@ -525,6 +621,7 @@ export default class PlayScene extends SuperScene {
     if (!this.level.hideContract) {
       const color = plane.perfect ? 'rgb(255, 0, 255)' : 'rgb(0, 255, 0)';
       plane.winningLabel = this.text(plane.x, plane.y, '$0', {color, fontSize: 14});
+      plane.winningLabel.setDepth(1000);
     }
   }
 
@@ -562,6 +659,8 @@ export default class PlayScene extends SuperScene {
   bringInChuck(debug = false) {
     const width = 800;
     const height = 600;
+
+    this.cameraFollow(null);
 
     const chuck = this.add.image(width / 2, height / 2 - 50, 'title');
     chuck.alpha = 0;
@@ -619,6 +718,10 @@ export default class PlayScene extends SuperScene {
     level.wrecks.push(wreck);
     this.setupWreck(wreck, false);
 
+    wreck.body.setVelocityX(plane.body.velocity.x * 0.5);
+    wreck.body.setVelocityY(plane.body.velocity.y * 0.5);
+
+    this.explode(x, y);
     plane.booster.destroy();
     plane.destroy();
     this.playSound('explode');
@@ -629,6 +732,20 @@ export default class PlayScene extends SuperScene {
         this.changePlanes();
       }, 2000);
     }
+  }
+
+  damageTween(object, duration = 300) {
+    if (object.damageTween) {
+      object.damageTween.stop();
+    }
+    object.damageTween = this.tweenPercent(
+      duration,
+      (factor) => {
+        const tint = Phaser.Display.Color.Interpolate.ColorWithColor(whiteColor, redColor, 1, 1 - factor);
+        const {color} = Phaser.Display.Color.ObjectToColor(tint);
+        object.setTint(color);
+      },
+    );
   }
 
   damagePlane(plane, amount) {
@@ -645,6 +762,8 @@ export default class PlayScene extends SuperScene {
     if (plane === this.level.currentPlane) {
       this.trauma(plane.damage / prop('plane.health'));
     }
+
+    this.damageTween(plane);
 
     if (plane.damage >= prop('plane.health')) {
       this.destroyPlane(plane);
@@ -671,7 +790,7 @@ export default class PlayScene extends SuperScene {
     }
 
     turret.gunCooldowns[turret.currentGun] += 5000;
-    turret.alpha = 0.5;
+    turret.setTint(0xFF0000);
 
     this.playSound('hitTurret');
     bullet.destroy();
@@ -767,6 +886,74 @@ export default class PlayScene extends SuperScene {
   }
 
   setupAnimations() {
+    this.anims.create({
+      key: 'bullet0',
+      frames: [
+        {
+          key: 'bullet0',
+          frame: 0,
+        },
+        {
+          key: 'bullet0',
+          frame: 1,
+        },
+      ],
+      frameRate: 30,
+    });
+
+
+    this.anims.create({
+      key: 'boosterFire',
+      frames: [
+        {
+          key: 'booster',
+          frame: 0,
+        },
+        {
+          key: 'booster',
+          frame: 1,
+        },
+      ],
+      frameRate: 6,
+      repeat: -1,
+    });
+
+    this.anims.create({
+      key: 'afterburnerBoosterFire',
+      frames: [
+        {
+          key: 'booster',
+          frame: 2,
+        },
+        {
+          key: 'booster',
+          frame: 3,
+        },
+      ],
+      frameRate: 3,
+      repeat: -1,
+    });
+
+    ['player', 'enemyA', 'planeB', 'planeC', 'planeD', 'planeE', 'planeF'].forEach((type) => {
+      this.anims.create({
+        key: `${type}Alt`,
+        frames: [
+          {
+            key: type,
+            frame: 0,
+          },
+        ],
+      });
+      this.anims.create({
+        key: `${type}Current`,
+        frames: [
+          {
+            key: type,
+            frame: 1,
+          },
+        ],
+      });
+    });
   }
 
   processInput(plane, dt) {
@@ -873,7 +1060,7 @@ export default class PlayScene extends SuperScene {
 
     const planes = level.availablePlanes;
     planes.forEach((plane) => {
-      plane.alpha = 0.25;
+      plane.anims.play(`${plane.texture.key}Alt`);
     });
 
     if (planes.length > 1) {
@@ -882,7 +1069,7 @@ export default class PlayScene extends SuperScene {
 
     level.planeIndex = (level.planeIndex + planes.length + dIdx) % planes.length;
     const plane = level.selectingPlane = planes[level.planeIndex];
-    plane.alpha = 1;
+    plane.anims.play(`${plane.texture.key}Current`);
 
     this.cameraFollow(plane);
     level.debouncePlaneSelect = true;
@@ -988,33 +1175,6 @@ export default class PlayScene extends SuperScene {
       return;
     }
 
-    const soundThreshold = 10;
-    if (!plane.done && Math.abs(plane.body.velocity.x) < soundThreshold && Math.abs(plane.body.velocity.y) < soundThreshold) {
-      if (plane.winningSound && !plane.winningSound.isWinTweening) {
-        const sound = plane.winningSound;
-        sound.isWinTweening = true;
-        if (sound) {
-          this.tweenPercent(
-            1000,
-            (factor) => {
-              try {
-                sound.requestedVolume = 1 - factor;
-                sound.setVolume(sound.requestedVolume * this.game.volume * prop('scene.soundVolume'));
-              } catch (e) {
-              }
-            },
-            () => {
-              plane.winningSound = null;
-              try {
-                sound.destroy();
-              } catch (e) {
-              }
-            },
-          );
-        }
-      }
-    }
-
     const threshold = 0.1;
     if (!plane.done && Math.abs(plane.body.velocity.x) < threshold && Math.abs(plane.body.velocity.y) < threshold) {
       plane.done = now;
@@ -1037,32 +1197,6 @@ export default class PlayScene extends SuperScene {
       return;
     }
 
-    level.planes.forEach((plane) => {
-      if (plane.winningSound && !plane.winningSound.isWinTweening) {
-        const sound = plane.winningSound;
-        sound.isWinTweening = true;
-        if (sound) {
-          this.tweenPercent(
-            1000,
-            (factor) => {
-              try {
-                sound.requestedVolume = 1 - factor;
-                sound.setVolume(sound.requestedVolume * this.game.volume * prop('scene.soundVolume'));
-              } catch (e) {
-              }
-            },
-            () => {
-              plane.winningSound = null;
-              try {
-                sound.destroy();
-              } catch (e) {
-              }
-            },
-          );
-        }
-      }
-    });
-
     level.availablePlanes = level.planes.filter((p) => !p.winning).sort((a, b) => a.x - b.x);
 
     if (!level.availablePlanes.length) {
@@ -1071,13 +1205,13 @@ export default class PlayScene extends SuperScene {
     }
 
     level.availablePlanes.forEach((plane) => {
-      plane.alpha = 0.25;
+      plane.anims.play(`${plane.texture.key}Alt`);
     });
 
     level.planeIndex = 0;
     level.changingPlanes = true;
     level.selectingPlane = level.availablePlanes[level.planeIndex];
-    level.selectingPlane.alpha = 1;
+    level.selectingPlane.anims.play(`${level.selectingPlane.texture.key}Current`);
     this.cameraFollow(level.selectingPlane);
   }
 
@@ -1135,6 +1269,10 @@ export default class PlayScene extends SuperScene {
   }
 
   drag(object, dt) {
+    if (!object.body) {
+      return;
+    }
+
     if (object.winning) {
       const drag = Math.min(0.98, prop('physics.goalDrag') + (object.afterburnerThrust || 0) / 10);
       object.setVelocityX(object.body.velocity.x * drag);
@@ -1169,7 +1307,12 @@ export default class PlayScene extends SuperScene {
 
   thrusters(plane, dt) {
     const desiredPercent = Math.max(0, plane.afterburnerCooldown - this.time.now) / prop('afterburner.cooldown');
-    const afterburnerThrust = plane.afterburnerThrust = desiredPercent * 0.1 + (plane.afterburnerThrust || 0) * 0.9;
+    let afterburnerThrust = desiredPercent * 0.1 + (plane.afterburnerThrust || 0) * 0.9;
+    if (afterburnerThrust < 0.01) {
+      afterburnerThrust = 0;
+    }
+    plane.afterburnerThrust = afterburnerThrust;
+
     plane.thrust += prop('afterburner.thrustBoost') * afterburnerThrust;
 
     let max = (1 + prop('afterburner.thrustMax') * afterburnerThrust) * prop('plane.maxVelocity');
@@ -1250,8 +1393,13 @@ export default class PlayScene extends SuperScene {
         booster.sound = null;
       }
     } else {
-      booster.alpha = 1;
+      booster.alpha = 0.8;
       booster.heldTime = (booster.heldTime || 0) + dt;
+
+      if (!plane.afterburnerThrust || !plane.afterburnerThrust) {
+        booster.anims.play('boosterFire', true);
+        booster.isAfterburner = false;
+      }
 
       if (!booster.sound && !this.level.autopilot) {
         booster.sound = this.playSound('thrust', 0, 0.4, true);
@@ -1279,7 +1427,7 @@ export default class PlayScene extends SuperScene {
   }
 
   textColor(options) {
-    return 'rgb(255, 0, 0)';
+    return 'rgb(222, 158, 65)';
   }
 
   strokeColor(options) {
@@ -1316,6 +1464,7 @@ export default class PlayScene extends SuperScene {
     const yFactor = levelHeight > 2000 ? 0.1 : levelHeight > 1000 ? 0.2 : 0.4;
     const factor = Math.min(xFactor, yFactor);
     background.setScrollFactor(0);
+    background.alpha = 0.5;
     background.x = backgroundWidth / 2 - gameWidth / 2 - scrollX * factor;
     background.y = backgroundHeight / 2 - gameHeight / 2 - scrollY * factor;
   }

@@ -3,12 +3,15 @@
 import afterburner from './audio/afterburner.wav';
 import booster from './sprites/booster.png';
 import bullet0 from './sprites/bullet0.png';
+import clink from './audio/clink.wav';
 import cloud from './sprites/cloud.png';
 import cloud2 from './sprites/cloud2.png';
+import effectImageCircle from './images/effectImageCircle.png';
 import enemyA from './sprites/enemyA.png';
 import explode from './audio/explode.wav';
 import finale from './audio/finale.mp3';
 import goal from './audio/goal.wav';
+import goalTile from './sprites/goal.png';
 import hitPlane1 from './audio/hitPlane1.wav';
 import hitPlane2 from './audio/hitPlane2.wav';
 import hitPlane3 from './audio/hitPlane3.wav';
@@ -16,6 +19,11 @@ import hitTurret from './audio/hitTurret.wav';
 import intro from './audio/intro.mp3';
 import main from './audio/main.mp3';
 import mine from './sprites/mine.png';
+import planeB from './sprites/planeB.png';
+import planeC from './sprites/planeC.png';
+import planeD from './sprites/planeD.png';
+import planeE from './sprites/planeE.png';
+import planeF from './sprites/planeF.png';
 import player from './sprites/player.png';
 import score from './audio/score.wav';
 import select from './audio/select.wav';
@@ -26,18 +34,37 @@ import signature from './sprites/signature.png';
 import thrust from './audio/thrust.wav';
 import title from './sprites/title.png';
 import turret from './sprites/turret.png';
+import turretV from './sprites/turretV.png';
 import vault from './sprites/vault.png';
+import vaultB from './sprites/vaultB.png';
+import vaultR from './sprites/vaultR.png';
 import victory from './audio/victory.mp3';
 import wall from './images/wall.png';
+import wallBL from './images/wallBL.png';
+import wallBR from './images/wallBR.png';
+import wallBottom from './images/wallBottom.png';
+import wallTL from './images/wallTL.png';
+import wallTR from './images/wallTR.png';
+import wallTop from './images/wallTop.png';
+import wallVertical from './images/wallVertical.png';
 import wreck from './sprites/wreck.png';
 
 export const imageAssets = {
   cloud,
   cloud2,
+  effectImageCircle,
+  goalTile,
   signature,
   title,
   vault,
   wall,
+  wallBL,
+  wallBR,
+  wallBottom,
+  wallTL,
+  wallTR,
+  wallTop,
+  wallVertical,
 };
 
 export const spriteAssets = {
@@ -45,8 +72,16 @@ export const spriteAssets = {
   bullet0,
   enemyA,
   mine,
+  planeB,
+  planeC,
+  planeD,
+  planeE,
+  planeF,
   player,
   turret,
+  turretV,
+  vaultB,
+  vaultR,
   wreck,
 };
 
@@ -59,6 +94,7 @@ export const musicAssets = {
 
 export const soundAssets = {
   afterburner,
+  clink,
   explode,
   goal,
   hitPlane1,

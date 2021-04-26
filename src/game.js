@@ -6,6 +6,8 @@ import PlayScene from './play-scene';
 const baseConfig = {
   tileWidth: 32,
   tileHeight: 32,
+  spriteWidth: 32,
+  spriteHeight: 32,
 };
 
 export default class Game extends SuperGame {
