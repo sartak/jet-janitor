@@ -206,8 +206,8 @@ export const propSpecs = {
   'effects.pregoal.particles': [{
     image: 'effectImageCircle',
     preemit: true,
-    scaleX: 0.01,
-    scaleY: 0.01,
+    scaleX: 0.1,
+    scaleY: 0.1,
     quantity: 1,
     frequency: 1,
     lifespan: 10000,
