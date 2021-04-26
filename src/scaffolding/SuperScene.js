@@ -582,6 +582,7 @@ export default class SuperScene extends Phaser.Scene {
         const halfHeight = label.height / 2;
         label.x -= halfWidth;
         label.y -= halfHeight;
+        label.setDepth(100);
 
         let lx = label.x;
         let ly = label.y;
