@@ -682,8 +682,8 @@ export default class PlayScene extends SuperScene {
       );
 
       this.timer(() => {
-        const name = this.text(900, 300, 'Jet Janitor', {
-          fontSize: 64, color: 'rgb(0, 0, 255)',
+        const name = this.text(950, 250, 'Jet Janitor', {
+          fontSize: 64, color: '#6f7984',
         });
         name.alpha = 0;
         name.setScrollFactor(0);
